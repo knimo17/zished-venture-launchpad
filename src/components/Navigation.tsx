@@ -1,12 +1,19 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Menu } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 
 export const Navigation = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const navItems = [
@@ -42,11 +49,22 @@ export const Navigation = () => {
                 {item.label}
               </Link>
             ))}
-            <Link to="/apply">
-              <Button size="lg" className="rounded-full px-8">
-                Apply
-              </Button>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="lg" className="rounded-full px-8">
+                  Apply
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate('/internships')}>
+                  Apply for Internship
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/apply')}>
+                  Apply as Venture Operator
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="lg:hidden">
@@ -68,11 +86,29 @@ export const Navigation = () => {
                       {item.label}
                     </Link>
                   ))}
-                  <Link to="/apply" onClick={() => setOpen(false)}>
-                    <Button size="lg" className="w-full rounded-full">
-                      Apply
+                  <div className="space-y-2 pt-2">
+                    <Button 
+                      size="lg" 
+                      className="w-full rounded-full"
+                      onClick={() => {
+                        setOpen(false);
+                        navigate('/internships');
+                      }}
+                    >
+                      Apply for Internship
                     </Button>
-                  </Link>
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      className="w-full rounded-full"
+                      onClick={() => {
+                        setOpen(false);
+                        navigate('/apply');
+                      }}
+                    >
+                      Apply as Venture Operator
+                    </Button>
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
