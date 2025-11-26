@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -39,7 +41,31 @@ const formSchema = z.object({
 
 export const ApplicationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const internshipId = searchParams.get('internship');
+  const [internshipInfo, setInternshipInfo] = useState<{ title: string; portfolio_company: string } | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (internshipId) {
+      fetchInternshipInfo();
+    }
+  }, [internshipId]);
+
+  const fetchInternshipInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('internships')
+        .select('title, portfolio_company')
+        .eq('id', internshipId)
+        .single();
+
+      if (error) throw error;
+      setInternshipInfo(data);
+    } catch (error) {
+      console.error('Error fetching internship:', error);
+    }
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -92,6 +118,7 @@ export const ApplicationForm = () => {
           question4: values.question4,
           question5: values.question5,
           question6: values.question6,
+          internship_id: internshipId || null,
         });
 
       if (insertError) {
@@ -155,6 +182,13 @@ export const ApplicationForm = () => {
           <p className="text-xl text-muted-foreground">
             Tell us about yourself and how you think.
           </p>
+          {internshipInfo && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-base px-4 py-1">
+                Applying for: {internshipInfo.title} at {internshipInfo.portfolio_company}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <Card className="p-8 md:p-12 border-0 shadow-lg">
