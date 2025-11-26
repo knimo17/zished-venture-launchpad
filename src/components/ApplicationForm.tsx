@@ -92,16 +92,21 @@ export const ApplicationForm = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-gradient-to-br from-primary/5 to-accent/5">
-      <div className="max-w-4xl mx-auto space-y-12">
-        <div className="text-center space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold">Apply Now</h2>
-          <p className="text-xl text-muted-foreground font-serif">
-            Ready to build? Tell us about yourself and how you think.
+    <section className="py-32 px-6">
+      <div className="max-w-3xl mx-auto space-y-12">
+        <div className="space-y-6">
+          <div className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
+            APPLICATION
+          </div>
+          <h2 className="text-4xl md:text-6xl font-medium tracking-tight">
+            Ready to build?
+          </h2>
+          <p className="text-xl text-muted-foreground">
+            Tell us about yourself and how you think.
           </p>
         </div>
 
-        <Card className="p-8 md:p-12">
+        <Card className="p-8 md:p-12 border-0 shadow-lg">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <div className="grid md:grid-cols-2 gap-6">

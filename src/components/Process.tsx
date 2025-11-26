@@ -1,5 +1,3 @@
-import { ArrowRight } from "lucide-react";
-
 export const Process = () => {
   const steps = [
     {
@@ -25,26 +23,25 @@ export const Process = () => {
   ];
 
   return (
-    <section className="py-24 px-6 bg-card">
-      <div className="max-w-6xl mx-auto space-y-12">
-        <div className="text-center space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold">Selection Process</h2>
-          <p className="text-xl text-muted-foreground font-serif max-w-3xl mx-auto">
-            We're looking for excellence. Our process is designed to identify operators who can thrive.
-          </p>
+    <section className="py-32 px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="max-w-3xl space-y-6 mb-20">
+          <div className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
+            SELECTION PROCESS
+          </div>
+          <h2 className="text-4xl md:text-6xl font-medium tracking-tight">
+            We're looking for excellence
+          </h2>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-4 gap-12">
           {steps.map((step, index) => (
-            <div key={index} className="relative">
-              <div className="space-y-4">
-                <div className="text-6xl font-bold text-primary/20">{step.number}</div>
-                <h3 className="text-xl font-bold">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
+            <div key={index} className="space-y-4">
+              <div className="text-4xl font-light text-muted-foreground">{step.number}</div>
+              <div>
+                <h3 className="text-lg font-medium mb-2">{step.title}</h3>
+                <p className="text-sm text-muted-foreground">{step.description}</p>
               </div>
-              {index < steps.length - 1 && (
-                <ArrowRight className="hidden md:block absolute -right-3 top-8 text-muted-foreground/30" />
-              )}
             </div>
           ))}
         </div>
