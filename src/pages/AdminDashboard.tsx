@@ -22,6 +22,11 @@ interface Application {
   email: string;
   phone: string;
   status: string;
+  internship_id: string | null;
+  internships: {
+    title: string;
+    portfolio_company: string;
+  } | null;
 }
 
 export default function AdminDashboard() {
@@ -39,7 +44,19 @@ export default function AdminDashboard() {
     try {
       const { data, error } = await supabase
         .from('applications')
-        .select('id, created_at, name, email, phone, status')
+        .select(`
+          id, 
+          created_at, 
+          name, 
+          email, 
+          phone, 
+          status,
+          internship_id,
+          internships (
+            title,
+            portfolio_company
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -111,11 +128,11 @@ export default function AdminDashboard() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
               {applications.map((app) => (
                 <TableRow key={app.id}>
                   <TableCell>
@@ -124,6 +141,18 @@ export default function AdminDashboard() {
                   <TableCell className="font-medium">{app.name}</TableCell>
                   <TableCell>{app.email}</TableCell>
                   <TableCell>{app.phone}</TableCell>
+                  <TableCell>
+                    {app.internship_id ? (
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="secondary">Internship</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {app.internships?.title}
+                        </span>
+                      </div>
+                    ) : (
+                      <Badge variant="outline">General Application</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(app.status)}>
                       {app.status}
@@ -140,7 +169,6 @@ export default function AdminDashboard() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
           </Table>
         </div>
       </div>

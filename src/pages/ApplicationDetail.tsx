@@ -33,6 +33,11 @@ interface Application {
   resume_file_name: string | null;
   resume_file_path: string | null;
   admin_notes: string | null;
+  internship_id: string | null;
+  internships: {
+    title: string;
+    portfolio_company: string;
+  } | null;
 }
 
 export default function ApplicationDetail() {
@@ -54,7 +59,13 @@ export default function ApplicationDetail() {
     try {
       const { data, error } = await supabase
         .from('applications')
-        .select('*')
+        .select(`
+          *,
+          internships (
+            title,
+            portfolio_company
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -165,7 +176,16 @@ export default function ApplicationDetail() {
     return null;
   }
 
-  const questions = [
+  const isInternship = application.internship_id !== null;
+  
+  const internshipQuestions = [
+    { label: 'Business you admire & growth strategy', answer: application.question1 },
+    { label: 'Time you improved/organized something', answer: application.question2 },
+    { label: 'Industry revenue strategy', answer: application.question3 },
+    { label: 'Strategic interest area', answer: application.question4 },
+  ];
+
+  const generalQuestions = [
     { label: 'Business Growth Experience', answer: application.question1 },
     { label: 'Problem-Solving Example', answer: application.question2 },
     { label: 'Industry Passion', answer: application.question3 },
@@ -174,12 +194,19 @@ export default function ApplicationDetail() {
     { label: 'Equity Motivation', answer: application.question6 },
   ];
 
+  const questions = isInternship ? internshipQuestions : generalQuestions;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Print Header (hidden on screen) */}
       <div className="print:block hidden text-center mb-8">
-        <h1 className="text-2xl font-bold">verigo54 - Venture Operator Application</h1>
+        <h1 className="text-2xl font-bold">verigo54 - {isInternship ? 'Internship' : 'Venture Operator'} Application</h1>
         <p className="text-sm text-muted-foreground">Application ID: {application.id}</p>
+        {isInternship && application.internships && (
+          <p className="text-sm text-muted-foreground">
+            {application.internships.title} at {application.internships.portfolio_company}
+          </p>
+        )}
       </div>
 
       {/* Screen-only controls */}
@@ -209,7 +236,19 @@ export default function ApplicationDetail() {
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-3xl mb-2">{application.name}</CardTitle>
+                <div className="flex items-center gap-2 mb-2">
+                  <CardTitle className="text-3xl">{application.name}</CardTitle>
+                  {isInternship ? (
+                    <Badge variant="secondary">Internship</Badge>
+                  ) : (
+                    <Badge variant="outline">General</Badge>
+                  )}
+                </div>
+                {isInternship && application.internships && (
+                  <p className="text-base font-medium mb-1">
+                    {application.internships.title} at {application.internships.portfolio_company}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground">
                   Submitted: {new Date(application.created_at).toLocaleString()}
                 </p>
@@ -277,12 +316,14 @@ export default function ApplicationDetail() {
         {application.resume_file_name && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Resume</CardTitle>
+              <CardTitle className="text-lg">
+                {isInternship ? 'Proof of Thinking (Optional)' : 'Resume'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm">{application.resume_file_name}</p>
               <p className="text-xs text-muted-foreground mt-1 print:hidden">
-                Use the download button above to view the full resume
+                Use the download button above to view the full file
               </p>
             </CardContent>
           </Card>
