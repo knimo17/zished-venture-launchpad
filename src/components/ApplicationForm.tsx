@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 
-const formSchema = z.object({
+// Schema for internship applications (4 questions + optional file)
+const internshipSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   linkedinUrl: z.string().url("Please enter a valid LinkedIn URL").or(z.literal("")).optional(),
@@ -38,6 +39,27 @@ const formSchema = z.object({
   question4: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question5: z.string().optional().default("N/A"),
   question6: z.string().optional().default("N/A"),
+});
+
+// Schema for general applications (6 questions + required resume)
+const generalSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  linkedinUrl: z.string().url("Please enter a valid LinkedIn URL").or(z.literal("")).optional(),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  expectedSalary: z.string().min(1, "Please enter your expected monthly salary"),
+  resume: z.instanceof(File, { message: "Please upload your resume" })
+    .refine((file) => file.size <= 5000000, "File size must be less than 5MB")
+    .refine(
+      (file) => ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type),
+      "Only PDF, DOC, and DOCX files are allowed"
+    ),
+  question1: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question2: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question3: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question4: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question5: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question6: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
 });
 
 export const ApplicationForm = () => {
@@ -68,7 +90,9 @@ export const ApplicationForm = () => {
     }
   };
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const formSchema = internshipId ? internshipSchema : generalSchema;
+  
+  const form = useForm<z.infer<typeof internshipSchema> | z.infer<typeof generalSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -80,6 +104,8 @@ export const ApplicationForm = () => {
       question2: "",
       question3: "",
       question4: "",
+      question5: "",
+      question6: "",
     },
   });
 
@@ -146,7 +172,7 @@ export const ApplicationForm = () => {
     }
   };
 
-  const questions = [
+  const internshipQuestions = [
     {
       name: "question1" as const,
       label: "1. Name a business you admire. What strategic move could help it grow faster?",
@@ -164,6 +190,35 @@ export const ApplicationForm = () => {
       label: "4. What interests you more and why: Pricing strategy, Content strategy, Funnel strategy, or Data-driven decision-making?",
     },
   ];
+
+  const generalQuestions = [
+    {
+      name: "question1" as const,
+      label: "1. What business have you helped grow or run? Describe your role.",
+    },
+    {
+      name: "question2" as const,
+      label: "2. Tell us a time you solved a messy operational problem.",
+    },
+    {
+      name: "question3" as const,
+      label: "3. Which industry are you most excited to build in, and why?",
+    },
+    {
+      name: "question4" as const,
+      label: "4. Pick a venture idea from our list OR suggest your own if you're passionate about building something specific. How would you grow revenue in the first 90 days?",
+    },
+    {
+      name: "question5" as const,
+      label: "5. What's one product you think we should launch?",
+    },
+    {
+      name: "question6" as const,
+      label: "6. Why do you want equity?",
+    },
+  ];
+
+  const questions = internshipId ? internshipQuestions : generalQuestions;
 
   return (
     <section className="py-32 px-6">
@@ -267,7 +322,11 @@ export const ApplicationForm = () => {
                 name="resume"
                 render={({ field: { value, onChange, ...fieldProps } }) => (
                   <FormItem>
-                    <FormLabel>(Optional) Upload any proof of your thinking</FormLabel>
+                    <FormLabel>
+                      {internshipId 
+                        ? "(Optional) Upload any proof of your thinking" 
+                        : "Resume / CV *"}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         {...fieldProps}
@@ -283,7 +342,9 @@ export const ApplicationForm = () => {
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
-                      Document, spreadsheet, campaign idea, content, report, school project, etc. - PDF, DOC, or DOCX (max 5MB)
+                      {internshipId 
+                        ? "Document, spreadsheet, campaign idea, content, report, school project, etc. - PDF, DOC, or DOCX (max 5MB)"
+                        : "PDF, DOC, or DOCX (max 5MB)"}
                     </p>
                     <FormMessage />
                   </FormItem>
