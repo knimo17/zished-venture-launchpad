@@ -92,7 +92,7 @@ export const ApplicationForm = () => {
   ];
 
   return (
-    <section id="application-form" className="py-24 px-6 bg-gradient-to-br from-primary/5 to-accent/5">
+    <section className="py-24 px-6 bg-gradient-to-br from-primary/5 to-accent/5">
       <div className="max-w-4xl mx-auto space-y-12">
         <div className="text-center space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold">Apply Now</h2>

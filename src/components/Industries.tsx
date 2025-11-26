@@ -31,7 +31,7 @@ export const Industries = () => {
   ];
 
   return (
-    <section id="industries" className="py-24 px-6 bg-card">
+    <section className="py-24 px-6 bg-card">
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="text-center space-y-4">
           <h2 className="text-4xl md:text-5xl font-bold">Industries We Build In</h2>
