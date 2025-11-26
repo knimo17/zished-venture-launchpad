@@ -179,19 +179,59 @@ export default function ApplicationDetail() {
   const isInternship = application.internship_id !== null;
   
   const internshipQuestions = [
-    { label: 'Business you admire & growth strategy', answer: application.question1 },
-    { label: 'Time you improved/organized something', answer: application.question2 },
-    { label: 'Industry revenue strategy', answer: application.question3 },
-    { label: 'Strategic interest area', answer: application.question4 },
+    { 
+      label: 'Question 1',
+      question: 'Name a business you admire. What strategic move could help it grow faster?',
+      answer: application.question1 
+    },
+    { 
+      label: 'Question 2',
+      question: 'Share a time you improved or organized something. What decision did you make and why?',
+      answer: application.question2 
+    },
+    { 
+      label: 'Question 3',
+      question: 'Choose one industry we operate in (food, travel, logistics, media, agriculture). Suggest one strategy that could boost revenue in that industry.',
+      answer: application.question3 
+    },
+    { 
+      label: 'Question 4',
+      question: 'What interests you more and why: Pricing strategy, Content strategy, Funnel strategy, or Data-driven decision-making?',
+      answer: application.question4 
+    },
   ];
 
   const generalQuestions = [
-    { label: 'Business Growth Experience', answer: application.question1 },
-    { label: 'Problem-Solving Example', answer: application.question2 },
-    { label: 'Industry Passion', answer: application.question3 },
-    { label: 'Revenue Growth Strategy', answer: application.question4 },
-    { label: 'Product/Service Ideas', answer: application.question5 },
-    { label: 'Equity Motivation', answer: application.question6 },
+    { 
+      label: 'Question 1',
+      question: 'What business have you helped grow or run? Describe your role.',
+      answer: application.question1 
+    },
+    { 
+      label: 'Question 2',
+      question: 'Tell us a time you solved a messy operational problem.',
+      answer: application.question2 
+    },
+    { 
+      label: 'Question 3',
+      question: 'Which industry are you most excited to build in, and why?',
+      answer: application.question3 
+    },
+    { 
+      label: 'Question 4',
+      question: 'Pick a venture idea from our list OR suggest your own if you\'re passionate about building something specific. How would you grow revenue in the first 90 days?',
+      answer: application.question4 
+    },
+    { 
+      label: 'Question 5',
+      question: 'What\'s one product you think we should launch?',
+      answer: application.question5 
+    },
+    { 
+      label: 'Question 6',
+      question: 'Why do you want equity?',
+      answer: application.question6 
+    },
   ];
 
   const questions = isInternship ? internshipQuestions : generalQuestions;
@@ -306,6 +346,7 @@ export default function ApplicationDetail() {
           <Card key={index} className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">{q.label}</CardTitle>
+              <p className="text-sm text-muted-foreground font-normal mt-2">{q.question}</p>
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap">{q.answer}</p>
