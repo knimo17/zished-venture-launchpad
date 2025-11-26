@@ -1,0 +1,275 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Printer, Download } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface Application {
+  id: string;
+  created_at: string;
+  name: string;
+  email: string;
+  phone: string;
+  linkedin_url: string | null;
+  expected_salary: string;
+  status: string;
+  question1: string;
+  question2: string;
+  question3: string;
+  question4: string;
+  question5: string;
+  question6: string;
+  resume_file_name: string | null;
+  resume_file_path: string | null;
+}
+
+export default function ApplicationDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [application, setApplication] = useState<Application | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (id) {
+      fetchApplication();
+    }
+  }, [id]);
+
+  const fetchApplication = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setApplication(data);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      navigate('/admin/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setApplication((prev) => prev ? { ...prev, status: newStatus } : null);
+      toast({
+        title: 'Success',
+        description: 'Application status updated',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const downloadResume = async () => {
+    if (!application?.resume_file_path) return;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('resumes')
+        .download(application.resume_file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = application.resume_file_name || 'resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download resume',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading application...</div>
+      </div>
+    );
+  }
+
+  if (!application) {
+    return null;
+  }
+
+  const questions = [
+    { label: 'Business Growth Experience', answer: application.question1 },
+    { label: 'Problem-Solving Example', answer: application.question2 },
+    { label: 'Industry Passion', answer: application.question3 },
+    { label: 'Revenue Growth Strategy', answer: application.question4 },
+    { label: 'Product/Service Ideas', answer: application.question5 },
+    { label: 'Equity Motivation', answer: application.question6 },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Print Header (hidden on screen) */}
+      <div className="print:block hidden text-center mb-8">
+        <h1 className="text-2xl font-bold">verigo54 - Venture Operator Application</h1>
+        <p className="text-sm text-muted-foreground">Application ID: {application.id}</p>
+      </div>
+
+      {/* Screen-only controls */}
+      <div className="print:hidden sticky top-0 bg-background border-b z-10 p-4">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <Button onClick={() => navigate('/admin/dashboard')} variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <div className="flex gap-2">
+            {application.resume_file_path && (
+              <Button onClick={downloadResume} variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Download Resume
+              </Button>
+            )}
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto p-8">
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-3xl mb-2">{application.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Submitted: {new Date(application.created_at).toLocaleString()}
+                </p>
+              </div>
+              <div className="print:hidden">
+                <Select value={application.status} onValueChange={updateStatus}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="print:block hidden">
+                <Badge>{application.status}</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Email</p>
+                <p>{application.email}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                <p>{application.phone}</p>
+              </div>
+              {application.linkedin_url && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">LinkedIn</p>
+                  <a
+                    href={application.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline print:text-foreground"
+                  >
+                    {application.linkedin_url}
+                  </a>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Expected Salary</p>
+                <p>{application.expected_salary}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {questions.map((q, index) => (
+          <Card key={index} className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">{q.label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap">{q.answer}</p>
+            </CardContent>
+          </Card>
+        ))}
+
+        {application.resume_file_name && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Resume</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{application.resume_file_name}</p>
+              <p className="text-xs text-muted-foreground mt-1 print:hidden">
+                Use the download button above to view the full resume
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Print-specific styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          @page {
+            margin: 1cm;
+          }
+        }
+      `}} />
+    </div>
+  );
+}
