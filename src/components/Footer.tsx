@@ -12,10 +12,10 @@ export const Footer = () => {
 
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
             <a 
-              href="mailto:team@zished.com" 
+              href="mailto:build@verigo54.com" 
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              team@zished.com
+              build@verigo54.com
             </a>
             
             <div className="flex gap-4">
