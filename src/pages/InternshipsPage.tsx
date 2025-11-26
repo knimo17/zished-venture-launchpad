@@ -96,21 +96,13 @@ export default function InternshipsPage() {
                         {internship.responsibilities}
                       </p>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                    <div className="pt-4 border-t">
                       <Button 
                         onClick={() => navigate(`/apply?internship=${internship.id}`)}
                         size="lg"
-                        className="flex-1"
+                        className="w-full"
                       >
                         Apply for this Internship
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/apply')}
-                        size="lg"
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        Apply as Venture Operator
                       </Button>
                     </div>
                   </CardContent>
