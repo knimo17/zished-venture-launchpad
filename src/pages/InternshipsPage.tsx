@@ -75,20 +75,12 @@ export default function InternshipsPage() {
               {internships.map((internship) => (
                 <Card key={internship.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-2 flex-1">
-                        <CardTitle className="text-2xl">{internship.title}</CardTitle>
-                        <CardDescription className="flex items-center gap-2 text-base">
-                          <Building2 className="h-4 w-4" />
-                          {internship.portfolio_company}
-                        </CardDescription>
-                      </div>
-                      <Button 
-                        onClick={() => navigate(`/apply?internship=${internship.id}`)}
-                        size="lg"
-                      >
-                        Apply Now
-                      </Button>
+                    <div className="space-y-2">
+                      <CardTitle className="text-2xl">{internship.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-2 text-base">
+                        <Building2 className="h-4 w-4" />
+                        {internship.portfolio_company}
+                      </CardDescription>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -103,6 +95,23 @@ export default function InternshipsPage() {
                       <p className="text-muted-foreground whitespace-pre-line">
                         {internship.responsibilities}
                       </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                      <Button 
+                        onClick={() => navigate(`/apply?internship=${internship.id}`)}
+                        size="lg"
+                        className="flex-1"
+                      >
+                        Apply for this Internship
+                      </Button>
+                      <Button 
+                        onClick={() => navigate('/apply')}
+                        size="lg"
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Apply as Venture Operator
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
