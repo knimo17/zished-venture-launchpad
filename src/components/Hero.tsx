@@ -1,14 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Hero = () => {
-  const scrollToForm = () => {
-    document.getElementById('application-form')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const scrollToVentures = () => {
-    document.getElementById('industries')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   return (
     <section className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted to-accent/10 px-6 py-20">
@@ -24,22 +18,24 @@ export const Hero = () => {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
-          <Button 
-            size="lg" 
-            className="text-lg px-8 py-6 group"
-            onClick={scrollToForm}
-          >
-            Apply as a Venture Operator
-            <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="text-lg px-8 py-6"
-            onClick={scrollToVentures}
-          >
-            Learn About Our Ventures
-          </Button>
+          <Link to="/apply">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-6 group"
+            >
+              Apply as a Venture Operator
+              <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+          <Link to="/industries">
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="text-lg px-8 py-6"
+            >
+              Learn About Our Ventures
+            </Button>
+          </Link>
         </div>
 
         <div className="pt-12 grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
