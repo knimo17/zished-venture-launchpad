@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       applications: {
         Row: {
+          admin_notes: string | null
           created_at: string
           email: string
           expected_salary: string
@@ -35,6 +36,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string
           email: string
           expected_salary: string
@@ -54,6 +56,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string
           email?: string
           expected_salary?: string

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Printer, Download } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, Printer, Download, Save } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ interface Application {
   question6: string;
   resume_file_name: string | null;
   resume_file_path: string | null;
+  admin_notes: string | null;
 }
 
 export default function ApplicationDetail() {
@@ -38,6 +40,8 @@ export default function ApplicationDetail() {
   const navigate = useNavigate();
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export default function ApplicationDetail() {
 
       if (error) throw error;
       setApplication(data);
+      setNotes(data.admin_notes || '');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -120,6 +125,32 @@ export default function ApplicationDetail() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const saveNotes = async () => {
+    try {
+      setSavingNotes(true);
+      const { error } = await supabase
+        .from('applications')
+        .update({ admin_notes: notes })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setApplication((prev) => prev ? { ...prev, admin_notes: notes } : null);
+      toast({
+        title: 'Success',
+        description: 'Notes saved successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   if (loading) {
@@ -244,7 +275,7 @@ export default function ApplicationDetail() {
         ))}
 
         {application.resume_file_name && (
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">Resume</CardTitle>
             </CardHeader>
@@ -256,6 +287,28 @@ export default function ApplicationDetail() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="print:hidden">
+          <CardHeader>
+            <CardTitle className="text-lg">Admin Notes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add internal notes about this application..."
+              className="min-h-[150px]"
+            />
+            <Button 
+              onClick={saveNotes} 
+              disabled={savingNotes}
+              className="w-full sm:w-auto"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {savingNotes ? 'Saving...' : 'Save Notes'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Print-specific styles */}
