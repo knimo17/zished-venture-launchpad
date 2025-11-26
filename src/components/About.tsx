@@ -9,7 +9,7 @@ export const About = () => {
             We build and scale African companies with global standards
           </h2>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            Zished Innovation Studio is a venture studio building multiple businesses across food, media & creative production, 
+            verigo54 is a venture studio building multiple businesses across food, media & creative production, 
             logistics, agriculture, and travel. We provide shared backend operations so operators can focus on growth and execution.
           </p>
         </div>

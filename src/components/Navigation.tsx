@@ -22,7 +22,7 @@ export const Navigation = () => {
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <div className="flex items-center justify-between h-20">
           <Link to="/" className="font-bold text-2xl tracking-tight">
-            ZISHED
+            verigo54
             <span className="text-accent">.</span>
           </Link>
 

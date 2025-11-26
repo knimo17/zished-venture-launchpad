@@ -188,7 +188,7 @@ export const ApplicationForm = () => {
                   <FormItem>
                     <FormLabel>Expected Monthly Salary *</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., GHS 5,000" {...field} />
+                      <Input placeholder="e.g., GHS 3,000" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
