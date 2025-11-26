@@ -20,6 +20,12 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Please enter a valid phone number"),
+  resume: z.instanceof(File, { message: "Please upload your resume" })
+    .refine((file) => file.size <= 5000000, "File size must be less than 5MB")
+    .refine(
+      (file) => ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type),
+      "Only PDF, DOC, and DOCX files are allowed"
+    ),
   question1: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question2: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question3: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
@@ -53,7 +59,11 @@ export const ApplicationForm = () => {
     // Simulate form submission
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    console.log(values);
+    console.log({
+      ...values,
+      resumeName: values.resume.name,
+      resumeSize: values.resume.size,
+    });
     
     toast({
       title: "Application Submitted!",
@@ -148,6 +158,34 @@ export const ApplicationForm = () => {
                     <FormControl>
                       <Input placeholder="+233 XXX XXX XXX" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="resume"
+                render={({ field: { value, onChange, ...fieldProps } }) => (
+                  <FormItem>
+                    <FormLabel>Resume / CV *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...fieldProps}
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            onChange(file);
+                          }
+                        }}
+                        className="cursor-pointer"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      PDF, DOC, or DOCX (max 5MB)
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
