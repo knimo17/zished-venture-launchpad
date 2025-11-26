@@ -10,41 +10,45 @@ export const Navigation = () => {
   const [open, setOpen] = useState(false);
 
   const navItems = [
-    { path: "/", label: "Home" },
     { path: "/about", label: "About" },
     { path: "/role", label: "The Role" },
-    { path: "/industries", label: "Industries" },
-    { path: "/ideal-candidate", label: "Who We Want" },
+    { path: "/industries", label: "Focus Areas" },
+    { path: "/ideal-candidate", label: "Operators" },
     { path: "/process", label: "Process" },
-    { path: "/apply", label: "Apply" },
   ];
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="font-bold text-xl">
-            Zished
+    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <div className="flex items-center justify-between h-20">
+          <Link to="/" className="font-bold text-2xl tracking-tight">
+            ZISHED
+            <span className="text-accent">.</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-8">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  "text-sm font-medium transition-colors hover:text-foreground",
                   location.pathname === item.path
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-muted"
+                    ? "text-foreground"
+                    : "text-muted-foreground"
                 )}
               >
                 {item.label}
               </Link>
             ))}
+            <Link to="/apply">
+              <Button size="lg" className="rounded-full px-8">
+                Apply
+              </Button>
+            </Link>
           </div>
 
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -58,16 +62,16 @@ export const Navigation = () => {
                       key={item.path}
                       to={item.path}
                       onClick={() => setOpen(false)}
-                      className={cn(
-                        "px-4 py-3 rounded-md text-base font-medium transition-colors",
-                        location.pathname === item.path
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground hover:bg-muted"
-                      )}
+                      className="text-base font-medium text-foreground hover:text-muted-foreground transition-colors"
                     >
                       {item.label}
                     </Link>
                   ))}
+                  <Link to="/apply" onClick={() => setOpen(false)}>
+                    <Button size="lg" className="w-full rounded-full">
+                      Apply
+                    </Button>
+                  </Link>
                 </div>
               </SheetContent>
             </Sheet>

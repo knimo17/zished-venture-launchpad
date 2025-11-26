@@ -1,48 +1,40 @@
 import { Card } from "@/components/ui/card";
-import { Briefcase, Users, Zap } from "lucide-react";
 
 export const About = () => {
   return (
-    <section className="py-24 px-6 bg-card">
-      <div className="max-w-6xl mx-auto space-y-16">
-        <div className="text-center space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold">About Zished Innovation Studio</h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto font-serif">
-            A venture studio building and scaling multiple businesses across Africa in food, media & creative production, 
-            logistics, agriculture, and travel.
+    <section className="py-32 px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="max-w-3xl space-y-8">
+          <h2 className="text-4xl md:text-6xl font-medium tracking-tight">
+            We build and scale African companies with global standards
+          </h2>
+          <p className="text-xl text-muted-foreground leading-relaxed">
+            Zished Innovation Studio is a venture studio building multiple businesses across food, media & creative production, 
+            logistics, agriculture, and travel. We provide shared backend operations so operators can focus on growth and execution.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <Card className="p-8 space-y-4 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold">Shared Operations</h3>
-            <p className="text-muted-foreground">
-              Accounting, legal, HR, branding, marketing, finance oversight, creative production, tech tools, and logistics support.
+        <div className="grid md:grid-cols-3 gap-12 mt-20">
+          <div className="space-y-4">
+            <div className="text-sm font-medium tracking-widest uppercase text-muted-foreground">Shared Operations</div>
+            <p className="text-base text-foreground/80">
+              Accounting, legal, HR, branding, marketing, finance, creative production, tech tools, and logistics support.
             </p>
-          </Card>
+          </div>
 
-          <Card className="p-8 space-y-4 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-              <Users className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-2xl font-bold">Focus on Growth</h3>
-            <p className="text-muted-foreground">
+          <div className="space-y-4">
+            <div className="text-sm font-medium tracking-widest uppercase text-muted-foreground">Focus on Growth</div>
+            <p className="text-base text-foreground/80">
               Operators focus on revenue growth, team leadership, customer experience, and execution — not backend systems.
             </p>
-          </Card>
+          </div>
 
-          <Card className="p-8 space-y-4 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
-              <Zap className="w-6 h-6 text-secondary-foreground" />
-            </div>
-            <h3 className="text-2xl font-bold">Scale Multiple Ventures</h3>
-            <p className="text-muted-foreground">
-              You're not joining ONE business — you'll grow multiple ventures over time with studio backing.
+          <div className="space-y-4">
+            <div className="text-sm font-medium tracking-widest uppercase text-muted-foreground">Multiple Ventures</div>
+            <p className="text-base text-foreground/80">
+              You're not joining one business — you'll grow multiple ventures over time with studio backing.
             </p>
-          </Card>
+          </div>
         </div>
       </div>
     </section>

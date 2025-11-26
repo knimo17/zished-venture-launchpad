@@ -14,8 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Space Grotesk', 'sans-serif'],
-        serif: ['Crimson Pro', 'serif'],
+        sans: ['Inter', 'sans-serif'],
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-blob': 'radial-gradient(circle at center, var(--tw-gradient-stops))',
       },
       colors: {
         border: "hsl(var(--border))",
