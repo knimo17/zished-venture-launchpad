@@ -21,6 +21,7 @@ const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   linkedinUrl: z.string().url("Please enter a valid LinkedIn URL").or(z.literal("")).optional(),
   phone: z.string().min(10, "Please enter a valid phone number"),
+  expectedSalary: z.string().min(1, "Please enter your expected monthly salary"),
   resume: z.instanceof(File, { message: "Please upload your resume" })
     .refine((file) => file.size <= 5000000, "File size must be less than 5MB")
     .refine(
@@ -46,6 +47,7 @@ export const ApplicationForm = () => {
       email: "",
       linkedinUrl: "",
       phone: "",
+      expectedSalary: "",
       question1: "",
       question2: "",
       question3: "",
@@ -91,7 +93,7 @@ export const ApplicationForm = () => {
     },
     {
       name: "question4" as const,
-      label: "4. Pick a venture idea from our list. How would you grow revenue in the first 90 days?",
+      label: "4. Pick a venture idea from our list OR suggest your own if you're passionate about building something specific. How would you grow revenue in the first 90 days?",
     },
     {
       name: "question5" as const,
@@ -173,6 +175,20 @@ export const ApplicationForm = () => {
                     <FormLabel>Phone Number *</FormLabel>
                     <FormControl>
                       <Input placeholder="+233 XXX XXX XXX" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="expectedSalary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Expected Monthly Salary *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., GHS 5,000" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
