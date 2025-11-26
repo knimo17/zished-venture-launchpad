@@ -10,44 +10,12 @@ export const Footer = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-            <a 
-              href="mailto:build@verigo54.com" 
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              build@verigo54.com
-            </a>
-            
-            <div className="flex gap-4">
-              <a 
-                href="https://linkedin.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="LinkedIn"
-              >
-                LinkedIn
-              </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Twitter"
-              >
-                Twitter
-              </a>
-              <a 
-                href="https://instagram.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Instagram"
-              >
-                Instagram
-              </a>
-            </div>
-          </div>
+          <a 
+            href="mailto:build@verigo54.com" 
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            build@verigo54.com
+          </a>
         </div>
 
         <div className="mt-8 pt-6 border-t text-center text-xs text-muted-foreground">
