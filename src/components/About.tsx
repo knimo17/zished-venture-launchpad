@@ -10,7 +10,7 @@ export const About = () => {
           </h2>
           <p className="text-xl text-muted-foreground leading-relaxed">
             verigo54 is a venture studio building multiple businesses across food, media & creative production, 
-            logistics, agriculture, and travel. We provide shared backend operations so operators can focus on growth and execution.
+            logistics, commerce infrastructure, and travel. We provide shared backend operations so operators can focus on growth and execution.
           </p>
         </div>
 
