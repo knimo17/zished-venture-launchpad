@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -60,22 +61,58 @@ export const ApplicationForm = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log({
-      ...values,
-      resumeName: values.resume.name,
-      resumeSize: values.resume.size,
-    });
-    
-    toast({
-      title: "Application Submitted!",
-      description: "We'll review your application and get back to you soon.",
-    });
-    
-    form.reset();
-    setIsSubmitting(false);
+    try {
+      // Upload resume file to storage
+      const fileExt = values.resume.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, values.resume);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Save application to database
+      const { error: insertError } = await supabase
+        .from('applications')
+        .insert({
+          name: values.name,
+          email: values.email,
+          linkedin_url: values.linkedinUrl || null,
+          phone: values.phone,
+          expected_salary: values.expectedSalary,
+          resume_file_name: values.resume.name,
+          resume_file_path: filePath,
+          question1: values.question1,
+          question2: values.question2,
+          question3: values.question3,
+          question4: values.question4,
+          question5: values.question5,
+          question6: values.question6,
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      toast({
+        title: "Application Submitted!",
+        description: "We'll review your application and get back to you soon.",
+      });
+      
+      form.reset();
+    } catch (error: any) {
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const questions = [
