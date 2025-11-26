@@ -4,7 +4,7 @@ export const Footer = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-2">
-            <h3 className="text-lg font-bold">ZISHED<span className="text-accent">.</span></h3>
+            <h3 className="text-lg font-bold">verigo54<span className="text-accent">.</span></h3>
             <p className="text-sm text-muted-foreground">
               We Build African Companies With Global Standards.
             </p>
@@ -51,7 +51,7 @@ export const Footer = () => {
         </div>
 
         <div className="mt-8 pt-6 border-t text-center text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} Zished Innovation Studio. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} verigo54. All rights reserved.</p>
         </div>
       </div>
     </footer>

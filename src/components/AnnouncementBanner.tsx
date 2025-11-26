@@ -10,7 +10,7 @@ export const AnnouncementBanner = () => {
   return (
     <div className="bg-primary text-primary-foreground py-3 px-6 text-center text-sm relative">
       <p>
-        <strong>Venture Operators:</strong> Join Zished Innovation Studio & Build African Companies With Global Standards |{" "}
+        <strong>Venture Operators:</strong> Join verigo54 & Build African Companies With Global Standards |{" "}
         <Link to="/apply" className="underline hover:no-underline">
           Apply Now
         </Link>
