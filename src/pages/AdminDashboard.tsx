@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut } from 'lucide-react';
+import { LogOut, Briefcase } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -91,10 +91,16 @@ export default function AdminDashboard() {
               Total applications: {applications.length}
             </p>
           </div>
-          <Button onClick={handleSignOut} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/admin/internships')} variant="outline">
+              <Briefcase className="mr-2 h-4 w-4" />
+              Manage Internships
+            </Button>
+            <Button onClick={handleSignOut} variant="outline">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         <div className="bg-card rounded-lg border">

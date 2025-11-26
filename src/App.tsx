@@ -16,6 +16,8 @@ import ApplyPage from "./pages/ApplyPage";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ApplicationDetail from "./pages/ApplicationDetail";
+import InternshipsPage from "./pages/InternshipsPage";
+import ManageInternships from "./pages/ManageInternships";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,7 @@ const App = () => (
             <Route path="/industries" element={<IndustriesPage />} />
             <Route path="/ideal-candidate" element={<IdealPage />} />
             <Route path="/process" element={<ProcessPage />} />
+            <Route path="/internships" element={<InternshipsPage />} />
             <Route path="/apply" element={<ApplyPage />} />
             
             {/* Admin routes */}
@@ -53,6 +56,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ApplicationDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/internships" 
+              element={
+                <ProtectedRoute>
+                  <ManageInternships />
                 </ProtectedRoute>
               } 
             />

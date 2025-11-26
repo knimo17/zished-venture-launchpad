@@ -14,6 +14,7 @@ export const Navigation = () => {
     { path: "/role", label: "The Role" },
     { path: "/industries", label: "Focus Areas" },
     { path: "/ideal-candidate", label: "Operators" },
+    { path: "/internships", label: "Internships" },
     { path: "/process", label: "Process" },
   ];
 

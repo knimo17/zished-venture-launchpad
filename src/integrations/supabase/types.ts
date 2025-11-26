@@ -21,6 +21,7 @@ export type Database = {
           email: string
           expected_salary: string
           id: string
+          internship_id: string | null
           linkedin_url: string | null
           name: string
           phone: string
@@ -41,6 +42,7 @@ export type Database = {
           email: string
           expected_salary: string
           id?: string
+          internship_id?: string | null
           linkedin_url?: string | null
           name: string
           phone: string
@@ -61,6 +63,7 @@ export type Database = {
           email?: string
           expected_salary?: string
           id?: string
+          internship_id?: string | null
           linkedin_url?: string | null
           name?: string
           phone?: string
@@ -73,6 +76,47 @@ export type Database = {
           resume_file_name?: string | null
           resume_file_path?: string | null
           status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_internship_id_fkey"
+            columns: ["internship_id"]
+            isOneToOne: false
+            referencedRelation: "internships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internships: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          portfolio_company: string
+          responsibilities: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          is_active?: boolean
+          portfolio_company: string
+          responsibilities: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          portfolio_company?: string
+          responsibilities?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
