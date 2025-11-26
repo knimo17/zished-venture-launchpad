@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  linkedinUrl: z.string().url("Please enter a valid LinkedIn URL").or(z.literal("")).optional(),
   phone: z.string().min(10, "Please enter a valid phone number"),
   resume: z.instanceof(File, { message: "Please upload your resume" })
     .refine((file) => file.size <= 5000000, "File size must be less than 5MB")
@@ -43,6 +44,7 @@ export const ApplicationForm = () => {
     defaultValues: {
       name: "",
       email: "",
+      linkedinUrl: "",
       phone: "",
       question1: "",
       question2: "",
@@ -148,6 +150,20 @@ export const ApplicationForm = () => {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="linkedinUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LinkedIn URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://linkedin.com/in/yourprofile" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
