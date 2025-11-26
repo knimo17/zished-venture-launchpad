@@ -25,18 +25,19 @@ const formSchema = z.object({
   linkedinUrl: z.string().url("Please enter a valid LinkedIn URL").or(z.literal("")).optional(),
   phone: z.string().min(10, "Please enter a valid phone number"),
   expectedSalary: z.string().min(1, "Please enter your expected monthly salary"),
-  resume: z.instanceof(File, { message: "Please upload your resume" })
+  resume: z.instanceof(File, { message: "Please upload your proof of thinking" })
     .refine((file) => file.size <= 5000000, "File size must be less than 5MB")
     .refine(
       (file) => ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type),
       "Only PDF, DOC, and DOCX files are allowed"
-    ),
+    )
+    .optional(),
   question1: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question2: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question3: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
   question4: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
-  question5: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
-  question6: z.string().min(50, "Please provide a detailed answer (at least 50 characters)"),
+  question5: z.string().optional().default("N/A"),
+  question6: z.string().optional().default("N/A"),
 });
 
 export const ApplicationForm = () => {
@@ -79,8 +80,6 @@ export const ApplicationForm = () => {
       question2: "",
       question3: "",
       question4: "",
-      question5: "",
-      question6: "",
     },
   });
 
@@ -88,17 +87,22 @@ export const ApplicationForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Upload resume file to storage
-      const fileExt = values.resume.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      let filePath = null;
+      let fileName = null;
 
-      const { error: uploadError } = await supabase.storage
-        .from('resumes')
-        .upload(filePath, values.resume);
+      // Upload file to storage if provided
+      if (values.resume) {
+        const fileExt = values.resume.name.split('.').pop();
+        fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        filePath = `${fileName}`;
 
-      if (uploadError) {
-        throw uploadError;
+        const { error: uploadError } = await supabase.storage
+          .from('resumes')
+          .upload(filePath, values.resume);
+
+        if (uploadError) {
+          throw uploadError;
+        }
       }
 
       // Save application to database
@@ -110,14 +114,14 @@ export const ApplicationForm = () => {
           linkedin_url: values.linkedinUrl || null,
           phone: values.phone,
           expected_salary: values.expectedSalary,
-          resume_file_name: values.resume.name,
+          resume_file_name: fileName,
           resume_file_path: filePath,
           question1: values.question1,
           question2: values.question2,
           question3: values.question3,
           question4: values.question4,
-          question5: values.question5,
-          question6: values.question6,
+          question5: values.question5 || "N/A",
+          question6: values.question6 || "N/A",
           internship_id: internshipId || null,
         });
 
@@ -145,27 +149,19 @@ export const ApplicationForm = () => {
   const questions = [
     {
       name: "question1" as const,
-      label: "1. What business have you helped grow or run? Describe your role.",
+      label: "1. Name a business you admire. What strategic move could help it grow faster?",
     },
     {
       name: "question2" as const,
-      label: "2. Tell us a time you solved a messy operational problem.",
+      label: "2. Share a time you improved or organized something. What decision did you make and why?",
     },
     {
       name: "question3" as const,
-      label: "3. Which industry are you most excited to build in, and why?",
+      label: "3. Choose one industry we operate in (food, travel, logistics, media, agriculture). Suggest one strategy that could boost revenue in that industry.",
     },
     {
       name: "question4" as const,
-      label: "4. Pick a venture idea from our list OR suggest your own if you're passionate about building something specific. How would you grow revenue in the first 90 days?",
-    },
-    {
-      name: "question5" as const,
-      label: "5. What's one product you think we should launch?",
-    },
-    {
-      name: "question6" as const,
-      label: "6. Why do you want equity?",
+      label: "4. What interests you more and why: Pricing strategy, Content strategy, Funnel strategy, or Data-driven decision-making?",
     },
   ];
 
@@ -271,7 +267,7 @@ export const ApplicationForm = () => {
                 name="resume"
                 render={({ field: { value, onChange, ...fieldProps } }) => (
                   <FormItem>
-                    <FormLabel>Resume / CV *</FormLabel>
+                    <FormLabel>(Optional) Upload any proof of your thinking</FormLabel>
                     <FormControl>
                       <Input
                         {...fieldProps}
@@ -287,7 +283,7 @@ export const ApplicationForm = () => {
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
-                      PDF, DOC, or DOCX (max 5MB)
+                      Document, spreadsheet, campaign idea, content, report, school project, etc. - PDF, DOC, or DOCX (max 5MB)
                     </p>
                     <FormMessage />
                   </FormItem>
