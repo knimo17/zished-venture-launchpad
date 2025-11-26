@@ -19,8 +19,8 @@ export const Industries = () => {
       description: "Travel & experiences across Africa"
     },
     {
-      title: "Agriculture",
-      description: "Sustainable infrastructure & agtech"
+      title: "Commerce Infrastructure",
+      description: "Financial engagement, rewards platforms & merchant tools"
     }
   ];
 
