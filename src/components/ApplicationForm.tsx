@@ -155,6 +155,25 @@ export const ApplicationForm = () => {
         throw insertError;
       }
 
+      // Send email notifications
+      try {
+        await supabase.functions.invoke('send-application-notification', {
+          body: {
+            applicantName: values.name,
+            applicantEmail: values.email,
+            phone: values.phone,
+            linkedinUrl: values.linkedinUrl || undefined,
+            expectedSalary: values.expectedSalary,
+            applicationType: internshipId ? 'internship' : 'general',
+            internshipTitle: internshipInfo?.title,
+            portfolioCompany: internshipInfo?.portfolio_company,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send notification emails:', emailError);
+        // Don't fail the submission if email fails
+      }
+
       toast({
         title: "Application Submitted!",
         description: "We'll review your application and get back to you soon.",
