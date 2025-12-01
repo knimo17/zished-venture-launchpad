@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 export const Hero = () => {
+  const { content, loading } = useSiteContent('hero');
+
+  const label = content.hero_label || 'VENTURE STUDIO';
+  const headline = content.hero_headline || "Build ventures you don't have to start from scratch";
+  const cta = content.hero_cta || 'Build with us';
+
   return (
     <section className="relative min-h-[90vh] flex items-center px-6 py-24 overflow-hidden">
       {/* Gradient Blobs */}
@@ -13,10 +20,10 @@ export const Hero = () => {
         <div className="max-w-4xl space-y-8">
           <div className="space-y-2">
             <p className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
-              VENTURE STUDIO
+              {label}
             </p>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[1.1]">
-              Build ventures you don't have to start from scratch
+              {headline}
             </h1>
           </div>
           
@@ -26,7 +33,7 @@ export const Hero = () => {
                 size="lg" 
                 className="rounded-full px-8 h-12 text-base"
               >
-                Build with us
+                {cta}
               </Button>
             </Link>
           </div>
