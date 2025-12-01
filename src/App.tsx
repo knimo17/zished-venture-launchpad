@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import InternshipsPage from "./pages/InternshipsPage";
 import ManageInternships from "./pages/ManageInternships";
+import ManageSiteContent from "./pages/ManageSiteContent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +65,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ManageInternships />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/site-content" 
+              element={
+                <ProtectedRoute>
+                  <ManageSiteContent />
                 </ProtectedRoute>
               } 
             />
