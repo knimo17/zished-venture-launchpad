@@ -341,6 +341,108 @@ export type Database = {
         }
         Relationships: []
       }
+      venture_matches: {
+        Row: {
+          assessment_result_id: string
+          compatibility_score: number
+          concerns: string[]
+          created_at: string
+          dimension_score: number
+          founder_type_score: number
+          id: string
+          match_reasons: string[]
+          overall_score: number
+          suggested_role: string | null
+          venture_id: string
+        }
+        Insert: {
+          assessment_result_id: string
+          compatibility_score: number
+          concerns?: string[]
+          created_at?: string
+          dimension_score: number
+          founder_type_score: number
+          id?: string
+          match_reasons?: string[]
+          overall_score: number
+          suggested_role?: string | null
+          venture_id: string
+        }
+        Update: {
+          assessment_result_id?: string
+          compatibility_score?: number
+          concerns?: string[]
+          created_at?: string
+          dimension_score?: number
+          founder_type_score?: number
+          id?: string
+          match_reasons?: string[]
+          overall_score?: number
+          suggested_role?: string | null
+          venture_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venture_matches_assessment_result_id_fkey"
+            columns: ["assessment_result_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venture_matches_venture_id_fkey"
+            columns: ["venture_id"]
+            isOneToOne: false
+            referencedRelation: "ventures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ventures: {
+        Row: {
+          created_at: string
+          description: string
+          dimension_weights: Json
+          id: string
+          ideal_founder_type: string
+          industry: string
+          is_active: boolean
+          name: string
+          secondary_founder_type: string | null
+          suggested_roles: string[]
+          team_profile: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          dimension_weights?: Json
+          id?: string
+          ideal_founder_type: string
+          industry: string
+          is_active?: boolean
+          name: string
+          secondary_founder_type?: string | null
+          suggested_roles?: string[]
+          team_profile?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          dimension_weights?: Json
+          id?: string
+          ideal_founder_type?: string
+          industry?: string
+          is_active?: boolean
+          name?: string
+          secondary_founder_type?: string | null
+          suggested_roles?: string[]
+          team_profile?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

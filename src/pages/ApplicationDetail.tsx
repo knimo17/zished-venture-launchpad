@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { AssessmentResults } from '@/components/AssessmentResults';
+import { VentureMatchesSection, VentureMatch } from '@/components/VentureMatchesSection';
 import {
   Select,
   SelectContent,
@@ -88,6 +89,7 @@ export default function ApplicationDetail() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [assessmentSession, setAssessmentSession] = useState<AssessmentSession | null>(null);
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResultData | null>(null);
+  const [ventureMatches, setVentureMatches] = useState<VentureMatch[]>([]);
   const [sendingAssessment, setSendingAssessment] = useState(false);
   const { toast } = useToast();
 
@@ -139,7 +141,7 @@ export default function ApplicationDetail() {
       if (sessionData) {
         setAssessmentSession(sessionData);
 
-        // If completed, fetch results
+        // If completed, fetch results and venture matches
         if (sessionData.status === 'completed') {
           const { data: resultsData } = await supabase
             .from('assessment_results')
@@ -149,6 +151,35 @@ export default function ApplicationDetail() {
 
           if (resultsData) {
             setAssessmentResults(resultsData as unknown as AssessmentResultData);
+
+            // Fetch venture matches with venture details
+            const { data: matchesData } = await supabase
+              .from('venture_matches')
+              .select(`
+                *,
+                ventures (
+                  name,
+                  industry
+                )
+              `)
+              .eq('assessment_result_id', resultsData.id)
+              .order('overall_score', { ascending: false });
+
+            if (matchesData) {
+              const formattedMatches: VentureMatch[] = matchesData.map((m: any) => ({
+                venture_id: m.venture_id,
+                venture_name: m.ventures?.name || 'Unknown',
+                industry: m.ventures?.industry || 'Unknown',
+                overall_score: m.overall_score,
+                founder_type_score: m.founder_type_score,
+                dimension_score: m.dimension_score,
+                compatibility_score: m.compatibility_score,
+                match_reasons: m.match_reasons || [],
+                concerns: m.concerns || [],
+                suggested_role: m.suggested_role,
+              }));
+              setVentureMatches(formattedMatches);
+            }
           }
         }
       }
@@ -499,6 +530,11 @@ export default function ApplicationDetail() {
             )}
           </CardContent>
         </Card>
+
+        {/* Venture Matches */}
+        {ventureMatches.length > 0 && (
+          <VentureMatchesSection matches={ventureMatches} />
+        )}
 
         {/* Assessment Results */}
         {assessmentResults && (
