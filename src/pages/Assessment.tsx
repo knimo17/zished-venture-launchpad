@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
+import { calculateAllVentureMatches, VentureProfile, AssessmentData } from '@/lib/ventureMatching';
 import { ChevronLeft, ChevronRight, Save, CheckCircle2 } from 'lucide-react';
 
 interface Question {
@@ -247,7 +248,7 @@ export default function Assessment() {
       const results = calculateAssessmentResults(responsesWithData, application.name);
 
       // Save results - cast to any to handle Supabase Json type
-      const { error: resultsError } = await supabase
+      const { data: resultData, error: resultsError } = await supabase
         .from('assessment_results')
         .insert({
           session_id: session.id,
@@ -261,9 +262,47 @@ export default function Assessment() {
           strengths: results.strengths,
           weaknesses: results.weaknesses,
           weakness_summary: results.weaknessSummary,
-        });
+        })
+        .select()
+        .single();
 
       if (resultsError) throw resultsError;
+
+      // Fetch ventures and calculate matches
+      const { data: ventures } = await supabase
+        .from('ventures')
+        .select('*')
+        .eq('is_active', true);
+
+      if (ventures && ventures.length > 0 && resultData) {
+        const assessmentData: AssessmentData = {
+          dimensionScores: results.dimensionScores,
+          ventureFitScores: results.ventureFitScores,
+          teamCompatibilityScores: results.teamCompatibilityScores,
+          primaryFounderType: results.primaryFounderType,
+          secondaryFounderType: results.secondaryFounderType,
+        };
+
+        const ventureMatches = calculateAllVentureMatches(
+          assessmentData,
+          ventures as VentureProfile[]
+        );
+
+        // Save all venture matches
+        const matchInserts = ventureMatches.map((match) => ({
+          assessment_result_id: resultData.id,
+          venture_id: match.ventureId,
+          overall_score: match.overallScore,
+          founder_type_score: match.founderTypeScore,
+          dimension_score: match.dimensionScore,
+          compatibility_score: match.compatibilityScore,
+          match_reasons: match.matchReasons,
+          concerns: match.concerns,
+          suggested_role: match.suggestedRole,
+        }));
+
+        await supabase.from('venture_matches').insert(matchInserts);
+      }
 
       // Update session status
       const { error: sessionError } = await supabase
