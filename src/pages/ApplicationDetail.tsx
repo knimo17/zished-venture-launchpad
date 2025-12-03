@@ -6,9 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { AssessmentResults } from '@/components/AssessmentResults';
 import { VentureMatchesSection, VentureMatch } from '@/components/VentureMatchesSection';
+import { AIEvaluationSection } from '@/components/AIEvaluationSection';
+import { AIVentureAnalysisCard } from '@/components/AIVentureAnalysisCard';
+import { AIInterviewResponsesSection } from '@/components/AIInterviewResponsesSection';
 import {
   Select,
   SelectContent,
@@ -51,6 +54,7 @@ interface AssessmentSession {
 }
 
 interface AssessmentResultData {
+  id: string;
   dimension_scores: {
     ownership: number;
     execution: number;
@@ -80,6 +84,36 @@ interface AssessmentResultData {
   weakness_summary: string;
 }
 
+interface AIEvaluation {
+  personalized_summary: string;
+  personalized_strengths: Array<{ strength: string; evidence: string; application: string }>;
+  personalized_growth_areas: Array<{ area: string; observation: string; recommendation: string }>;
+  response_patterns: { consistency: string; notable_patterns: string[] };
+  red_flags: string[];
+  overall_recommendation: string;
+  recommendation_reasoning: string;
+}
+
+interface AIVentureAnalysis {
+  venture_id: string;
+  fit_narrative: string;
+  role_recommendation: string;
+  onboarding_suggestions: string[];
+}
+
+interface AIInterviewQuestion {
+  id: string;
+  question_text: string;
+  question_context: string;
+  probing_area: string;
+  question_order: number;
+}
+
+interface AIInterviewResponse {
+  question_id: string;
+  response_text: string;
+}
+
 export default function ApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -91,6 +125,13 @@ export default function ApplicationDetail() {
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResultData | null>(null);
   const [ventureMatches, setVentureMatches] = useState<VentureMatch[]>([]);
   const [sendingAssessment, setSendingAssessment] = useState(false);
+  
+  // AI data states
+  const [aiEvaluation, setAiEvaluation] = useState<AIEvaluation | null>(null);
+  const [aiVentureAnalyses, setAiVentureAnalyses] = useState<(AIVentureAnalysis & { venture_name: string; industry: string })[]>([]);
+  const [aiInterviewQuestions, setAiInterviewQuestions] = useState<AIInterviewQuestion[]>([]);
+  const [aiInterviewResponses, setAiInterviewResponses] = useState<AIInterviewResponse[]>([]);
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -179,6 +220,64 @@ export default function ApplicationDetail() {
                 suggested_role: m.suggested_role,
               }));
               setVentureMatches(formattedMatches);
+            }
+
+            // Fetch AI evaluation
+            const { data: aiEvalData } = await supabase
+              .from('ai_evaluation')
+              .select('*')
+              .eq('assessment_result_id', resultsData.id)
+              .maybeSingle();
+
+            if (aiEvalData) {
+              setAiEvaluation({
+                personalized_summary: aiEvalData.personalized_summary,
+                personalized_strengths: aiEvalData.personalized_strengths as any,
+                personalized_growth_areas: aiEvalData.personalized_growth_areas as any,
+                response_patterns: aiEvalData.response_patterns as any,
+                red_flags: aiEvalData.red_flags || [],
+                overall_recommendation: aiEvalData.overall_recommendation,
+                recommendation_reasoning: aiEvalData.recommendation_reasoning,
+              });
+            }
+
+            // Fetch AI venture analyses
+            const { data: aiVentureData } = await supabase
+              .from('ai_venture_analysis')
+              .select('*, ventures(name, industry)')
+              .eq('assessment_result_id', resultsData.id);
+
+            if (aiVentureData) {
+              setAiVentureAnalyses(aiVentureData.map((v: any) => ({
+                venture_id: v.venture_id,
+                fit_narrative: v.fit_narrative,
+                role_recommendation: v.role_recommendation,
+                onboarding_suggestions: v.onboarding_suggestions || [],
+                venture_name: v.ventures?.name || 'Unknown',
+                industry: v.ventures?.industry || 'Unknown',
+              })));
+            }
+
+            // Fetch AI interview questions and responses
+            const { data: aiQuestionsData } = await supabase
+              .from('ai_interview_questions')
+              .select('*')
+              .eq('assessment_result_id', resultsData.id)
+              .order('question_order', { ascending: true });
+
+            if (aiQuestionsData && aiQuestionsData.length > 0) {
+              setAiInterviewQuestions(aiQuestionsData);
+
+              // Fetch responses for these questions
+              const questionIds = aiQuestionsData.map((q: any) => q.id);
+              const { data: responsesData } = await supabase
+                .from('ai_interview_responses')
+                .select('*')
+                .in('question_id', questionIds);
+
+              if (responsesData) {
+                setAiInterviewResponses(responsesData);
+              }
             }
           }
         }
@@ -531,9 +630,50 @@ export default function ApplicationDetail() {
           </CardContent>
         </Card>
 
+        {/* AI Evaluation Section */}
+        {aiEvaluation && (
+          <AIEvaluationSection
+            personalizedSummary={aiEvaluation.personalized_summary}
+            strengths={aiEvaluation.personalized_strengths}
+            growthAreas={aiEvaluation.personalized_growth_areas}
+            responsePatterns={aiEvaluation.response_patterns}
+            redFlags={aiEvaluation.red_flags}
+            overallRecommendation={aiEvaluation.overall_recommendation}
+            recommendationReasoning={aiEvaluation.recommendation_reasoning}
+          />
+        )}
+
+        {/* AI Venture Analyses */}
+        {aiVentureAnalyses.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI Venture Fit Analysis
+            </h2>
+            {aiVentureAnalyses.map((analysis) => (
+              <AIVentureAnalysisCard
+                key={analysis.venture_id}
+                ventureName={analysis.venture_name}
+                industry={analysis.industry}
+                fitNarrative={analysis.fit_narrative}
+                roleRecommendation={analysis.role_recommendation}
+                onboardingSuggestions={analysis.onboarding_suggestions}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Venture Matches */}
         {ventureMatches.length > 0 && (
           <VentureMatchesSection matches={ventureMatches} />
+        )}
+
+        {/* AI Interview Responses */}
+        {aiInterviewQuestions.length > 0 && (
+          <AIInterviewResponsesSection
+            questions={aiInterviewQuestions}
+            responses={aiInterviewResponses}
+          />
         )}
 
         {/* Assessment Results */}
