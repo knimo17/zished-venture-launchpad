@@ -770,8 +770,9 @@ export default function Assessment() {
                 className="space-y-3"
               >
                 {likertLabels.map((item) => (
-                  <div
+                  <Label
                     key={item.value}
+                    htmlFor={`option-${item.value}`}
                     className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
                       responses[currentQ.id] === item.value
                         ? 'border-primary bg-primary/5'
@@ -779,14 +780,11 @@ export default function Assessment() {
                     }`}
                   >
                     <RadioGroupItem value={item.value.toString()} id={`option-${item.value}`} />
-                    <Label 
-                      htmlFor={`option-${item.value}`} 
-                      className="flex-1 cursor-pointer font-normal"
-                    >
+                    <span className="flex-1 font-normal">
                       {item.label}
-                    </Label>
+                    </span>
                     <span className="text-muted-foreground text-sm">{item.value}</span>
-                  </div>
+                  </Label>
                 ))}
               </RadioGroup>
             </CardContent>
