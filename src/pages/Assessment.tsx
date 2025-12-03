@@ -743,7 +743,7 @@ export default function Assessment() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">
-              Question {currentQuestionIndex + 1} of {shuffledQuestions.length}
+              Question {answeredCount + 1} of {shuffledQuestions.length}
             </span>
             <span className="text-sm text-muted-foreground">
               {answeredCount} answered
@@ -774,7 +774,6 @@ export default function Assessment() {
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:bg-muted/50'
                     }`}
-                    onClick={() => handleResponseChange(currentQ.id, item.value)}
                   >
                     <RadioGroupItem value={item.value.toString()} id={`option-${item.value}`} />
                     <Label 
