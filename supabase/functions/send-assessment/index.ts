@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "verigo54 <onboarding@resend.dev>",
       to: [application.email],
-      subject: "Complete Your Founder Assessment - verigo54",
+      subject: "Complete Your Operator Assessment - verigo54",
       html: `
         <!DOCTYPE html>
         <html>
@@ -134,16 +134,16 @@ const handler = async (req: Request): Promise<Response> => {
           <div class="container">
             <div class="header">
               <h1>verigo54</h1>
-              <p>Founder Assessment</p>
+              <p>Operator Assessment</p>
             </div>
             <div class="content">
               <p>Hi ${application.name},</p>
               
-              <p>Thank you for applying to verigo54. As the next step in our evaluation process, we'd like you to complete a Founder Assessment.</p>
+              <p>Thank you for applying to verigo54. As the next step in our evaluation process, we'd like you to complete an Operator Assessment.</p>
               
               <p><strong>About the Assessment:</strong></p>
               <ul>
-                <li>70 questions designed to understand your founder profile</li>
+                <li>70 questions designed to understand your operator profile</li>
                 <li>Takes approximately 15-20 minutes</li>
                 <li>Your progress is saved automatically - you can continue later if needed</li>
                 <li>There are no right or wrong answers - be honest and authentic</li>

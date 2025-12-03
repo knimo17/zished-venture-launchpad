@@ -9,7 +9,7 @@ export interface VentureMatch {
   venture_name: string;
   industry: string;
   overall_score: number;
-  founder_type_score: number;
+  operator_type_score: number;
   dimension_score: number;
   compatibility_score: number;
   match_reasons: string[];
@@ -45,7 +45,7 @@ export function VentureMatchesSection({
           <CardTitle className="text-xl">Top Venture Matches</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground">
-          Based on founder type, core traits, and team compatibility scores
+          Based on operator type, core traits, and team compatibility scores
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -58,7 +58,7 @@ export function VentureMatchesSection({
               ventureName={match.venture_name}
               industry={match.industry}
               overallScore={Math.round(match.overall_score)}
-              founderTypeScore={Math.round(match.founder_type_score)}
+              founderTypeScore={Math.round(match.operator_type_score)}
               dimensionScore={Math.round(match.dimension_score)}
               compatibilityScore={Math.round(match.compatibility_score)}
               matchReasons={match.match_reasons}
@@ -98,7 +98,7 @@ export function VentureMatchesSection({
                     ventureName={match.venture_name}
                     industry={match.industry}
                     overallScore={Math.round(match.overall_score)}
-                    founderTypeScore={Math.round(match.founder_type_score)}
+                    founderTypeScore={Math.round(match.operator_type_score)}
                     dimensionScore={Math.round(match.dimension_score)}
                     compatibilityScore={Math.round(match.compatibility_score)}
                     matchReasons={match.match_reasons}

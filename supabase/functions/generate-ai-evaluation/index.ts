@@ -29,8 +29,8 @@ interface EvaluationRequest {
     decisionMaking: number;
     collaboration: number;
   };
-  primary_founder_type: string;
-  secondary_founder_type: string | null;
+  primary_operator_type: string;
+  secondary_operator_type: string | null;
   confidence_level: string;
   venture_matches: Array<{
     venture_id: string;
@@ -72,8 +72,8 @@ Assessment Scores (out of 50 for dimensions, 5.0 for others):
 - Problem-Solving: ${data.dimension_scores.problemSolving}/50
 - Leadership: ${data.dimension_scores.leadership}/50
 
-Founder Type: ${data.primary_founder_type} (${data.confidence_level} confidence)
-${data.secondary_founder_type ? `Secondary Type: ${data.secondary_founder_type}` : ''}
+Operator Type: ${data.primary_operator_type} (${data.confidence_level} confidence)
+${data.secondary_operator_type ? `Secondary Type: ${data.secondary_operator_type}` : ''}
 
 Venture Fit Scores:
 - Operator: ${data.venture_fit_scores.operator}
@@ -238,7 +238,7 @@ Always respond with valid JSON only, no markdown.`,
         data.assessment_result_id,
         venture,
         data.applicant_name,
-        data.primary_founder_type,
+        data.primary_operator_type,
         data.dimension_scores
       );
     }
@@ -262,11 +262,11 @@ async function generateVentureAnalysis(
   assessmentResultId: string,
   venture: any,
   applicantName: string,
-  founderType: string,
+  operatorType: string,
   dimensionScores: any
 ) {
   try {
-    const prompt = `Generate a specific fit analysis for ${applicantName} (${founderType}) for ${venture.venture_name} (${venture.industry}).
+    const prompt = `Generate a specific fit analysis for ${applicantName} (${operatorType}) for ${venture.venture_name} (${venture.industry}).
 
 Match Score: ${venture.overall_score}%
 Match Reasons: ${venture.match_reasons.join(', ')}

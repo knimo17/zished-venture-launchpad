@@ -39,7 +39,7 @@ interface AssessmentResultsProps {
   weaknessSummary: string;
 }
 
-const founderTypeIcons: Record<string, React.ReactNode> = {
+const operatorTypeIcons: Record<string, React.ReactNode> = {
   'Operational Leader': <Target className="h-5 w-5" />,
   'Product Architect': <Lightbulb className="h-5 w-5" />,
   'Growth Catalyst': <TrendingUp className="h-5 w-5" />,
@@ -77,7 +77,7 @@ export function AssessmentResults({
         <CardHeader>
           <div className="flex flex-wrap items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              {founderTypeIcons[primaryFounderType] || <Target className="h-6 w-6" />}
+              {operatorTypeIcons[primaryFounderType] || <Target className="h-6 w-6" />}
             </div>
             <div>
               <CardTitle className="text-2xl">{primaryFounderType}</CardTitle>
@@ -102,7 +102,7 @@ export function AssessmentResults({
       {/* Core Dimension Scores */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Core Founder Traits</CardTitle>
+          <CardTitle className="text-lg">Core Operator Traits</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {[

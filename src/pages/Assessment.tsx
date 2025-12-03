@@ -280,8 +280,8 @@ export default function Assessment() {
           dimension_scores: results.dimensionScores as any,
           venture_fit_scores: results.ventureFitScores as any,
           team_compatibility_scores: results.teamCompatibilityScores as any,
-          primary_founder_type: results.primaryFounderType,
-          secondary_founder_type: results.secondaryFounderType,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
           summary: results.summary,
           strengths: results.strengths,
@@ -319,7 +319,7 @@ export default function Assessment() {
           assessment_result_id: resultData.id,
           venture_id: match.ventureId,
           overall_score: match.overallScore,
-          founder_type_score: match.founderTypeScore,
+          operator_type_score: match.founderTypeScore,
           dimension_score: match.dimensionScore,
           compatibility_score: match.compatibilityScore,
           match_reasons: match.matchReasons,
@@ -350,8 +350,8 @@ export default function Assessment() {
           applicant_name: application.name,
           dimension_scores: results.dimensionScores,
           venture_fit_scores: results.ventureFitScores,
-          primary_founder_type: results.primaryFounderType,
-          secondary_founder_type: results.secondaryFounderType,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
           venture_matches: ventureMatchesForAI,
         },
@@ -365,8 +365,8 @@ export default function Assessment() {
           dimension_scores: results.dimensionScores,
           venture_fit_scores: results.ventureFitScores,
           team_compatibility_scores: results.teamCompatibilityScores,
-          primary_founder_type: results.primaryFounderType,
-          secondary_founder_type: results.secondaryFounderType,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
           venture_matches: ventureMatchesForAI,
         },
@@ -422,7 +422,7 @@ export default function Assessment() {
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-3xl">Founder Assessment</CardTitle>
+              <CardTitle className="text-3xl">Operator Assessment</CardTitle>
               <CardDescription className="text-lg mt-2">
                 Welcome, {application?.name || 'Applicant'}
               </CardDescription>
@@ -433,7 +433,7 @@ export default function Assessment() {
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span><strong>70 questions</strong> about your founder profile (15-20 minutes)</span>
+                    <span><strong>70 questions</strong> about your operator profile (15-20 minutes)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Clock className="h-5 w-5 text-primary mt-0.5 shrink-0" />
