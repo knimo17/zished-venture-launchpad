@@ -31,15 +31,15 @@ export interface TeamCompatibilityScores {
   collaboration: number;
 }
 
-export type FounderType = 'Operational Leader' | 'Product Architect' | 'Growth Catalyst' | 'Visionary Builder';
+export type OperatorType = 'Operational Leader' | 'Product Architect' | 'Growth Catalyst' | 'Visionary Builder';
 export type ConfidenceLevel = 'Strong' | 'Moderate' | 'Emerging';
 
 export interface AssessmentResult {
   dimensionScores: DimensionScores;
   ventureFitScores: VentureFitScores;
   teamCompatibilityScores: TeamCompatibilityScores;
-  primaryFounderType: FounderType;
-  secondaryFounderType: FounderType | null;
+  primaryFounderType: OperatorType;
+  secondaryFounderType: OperatorType | null;
   confidenceLevel: ConfidenceLevel;
   summary: string;
   strengths: string[];
@@ -133,25 +133,25 @@ export function calculateTeamCompatibilityScores(responses: AssessmentResponse[]
   return scores;
 }
 
-// Determine primary founder type
-export function determinePrimaryFounderType(ventureFitScores: VentureFitScores): FounderType {
+// Determine primary operator type
+export function determinePrimaryFounderType(ventureFitScores: VentureFitScores): OperatorType {
   const scores = [
-    { type: 'Operational Leader' as FounderType, score: ventureFitScores.operator },
-    { type: 'Product Architect' as FounderType, score: ventureFitScores.product },
-    { type: 'Growth Catalyst' as FounderType, score: ventureFitScores.growth },
-    { type: 'Visionary Builder' as FounderType, score: ventureFitScores.vision },
+    { type: 'Operational Leader' as OperatorType, score: ventureFitScores.operator },
+    { type: 'Product Architect' as OperatorType, score: ventureFitScores.product },
+    { type: 'Growth Catalyst' as OperatorType, score: ventureFitScores.growth },
+    { type: 'Visionary Builder' as OperatorType, score: ventureFitScores.vision },
   ];
 
   scores.sort((a, b) => b.score - a.score);
   return scores[0].type;
 }
 
-// Determine secondary founder type (if within 0.4 threshold)
+// Determine secondary operator type (if within 0.4 threshold)
 export function determineSecondaryFounderType(
   ventureFitScores: VentureFitScores,
-  primaryType: FounderType
-): FounderType | null {
-  const typeScoreMap: Record<FounderType, number> = {
+  primaryType: OperatorType
+): OperatorType | null {
+  const typeScoreMap: Record<OperatorType, number> = {
     'Operational Leader': ventureFitScores.operator,
     'Product Architect': ventureFitScores.product,
     'Growth Catalyst': ventureFitScores.growth,
@@ -159,7 +159,7 @@ export function determineSecondaryFounderType(
   };
 
   const primaryScore = typeScoreMap[primaryType];
-  const otherTypes = (Object.entries(typeScoreMap) as [FounderType, number][])
+  const otherTypes = (Object.entries(typeScoreMap) as [OperatorType, number][])
     .filter(([type]) => type !== primaryType)
     .sort((a, b) => b[1] - a[1]);
 
@@ -179,9 +179,9 @@ export function getConfidenceLevel(score: number): ConfidenceLevel {
   return 'Emerging';
 }
 
-// Get the score for a founder type
-function getFounderTypeScore(type: FounderType, ventureFitScores: VentureFitScores): number {
-  const map: Record<FounderType, number> = {
+// Get the score for an operator type
+function getOperatorTypeScore(type: OperatorType, ventureFitScores: VentureFitScores): number {
+  const map: Record<OperatorType, number> = {
     'Operational Leader': ventureFitScores.operator,
     'Product Architect': ventureFitScores.product,
     'Growth Catalyst': ventureFitScores.growth,
@@ -190,23 +190,23 @@ function getFounderTypeScore(type: FounderType, ventureFitScores: VentureFitScor
   return map[type];
 }
 
-// Generate summary based on founder type
+// Generate summary based on operator type
 export function generateSummary(
   name: string,
-  founderType: FounderType,
+  operatorType: OperatorType,
   confidence: ConfidenceLevel,
-  secondaryType: FounderType | null
+  secondaryType: OperatorType | null
 ): string {
   const readiness = confidence === 'Strong' ? 'Exceptional' : confidence;
 
-  const baseSummaries: Record<FounderType, string> = {
-    'Operational Leader': `${name} shows a ${readiness} founder profile with a strong bias toward Operational Leader traits. They are most energized by building structure, managing complexity, and ensuring that plans actually get executed. This profile is well-suited to operationally intensive ventures where reliability, process, and follow-through are critical.`,
-    'Product Architect': `${name} presents a ${readiness} founder profile with a dominant Product Architect orientation. They are naturally drawn to understanding users, mapping journeys, and turning insights into concrete product decisions. This makes them a strong fit for product-led ventures where differentiation comes from what is built and how it feels to use it.`,
-    'Growth Catalyst': `${name} has a ${readiness} founder profile with a strong Growth Catalyst orientation. They are energized by talking to people, pitching ideas, building relationships, and getting traction. This profile is ideal for go-to-market heavy ventures that depend on sales, partnerships, and community to grow.`,
-    'Visionary Builder': `${name} shows a ${readiness} founder profile with a strong Visionary Builder orientation. They think in missions, long-term direction, and the bigger story of what the venture could become. This profile is powerful for category-creating or long-horizon ventures where narrative, alignment, and ambition matter.`,
+  const baseSummaries: Record<OperatorType, string> = {
+    'Operational Leader': `${name} shows a ${readiness} operator profile with a strong bias toward Operational Leader traits. They are most energized by building structure, managing complexity, and ensuring that plans actually get executed. This profile is well-suited to operationally intensive ventures where reliability, process, and follow-through are critical.`,
+    'Product Architect': `${name} presents a ${readiness} operator profile with a dominant Product Architect orientation. They are naturally drawn to understanding users, mapping journeys, and turning insights into concrete product decisions. This makes them a strong fit for product-led ventures where differentiation comes from what is built and how it feels to use it.`,
+    'Growth Catalyst': `${name} has a ${readiness} operator profile with a strong Growth Catalyst orientation. They are energized by talking to people, pitching ideas, building relationships, and getting traction. This profile is ideal for go-to-market heavy ventures that depend on sales, partnerships, and community to grow.`,
+    'Visionary Builder': `${name} shows a ${readiness} operator profile with a strong Visionary Builder orientation. They think in missions, long-term direction, and the bigger story of what the venture could become. This profile is powerful for category-creating or long-horizon ventures where narrative, alignment, and ambition matter.`,
   };
 
-  const hybridAdditions: Record<FounderType, Record<FounderType, string>> = {
+  const hybridAdditions: Record<OperatorType, Record<OperatorType, string>> = {
     'Operational Leader': {
       'Product Architect': 'product thinking',
       'Growth Catalyst': 'sales and storytelling',
@@ -227,19 +227,19 @@ export function generateSummary(
       'Product Architect': 'product expertise',
       'Growth Catalyst': 'growth execution',
     },
-  } as Record<FounderType, Record<FounderType, string>>;
+  } as Record<OperatorType, Record<OperatorType, string>>;
 
   if (secondaryType) {
-    const secondaryFocus = hybridAdditions[founderType][secondaryType];
-    return `${name} shows a ${readiness} founder profile as an ${founderType} with ${secondaryType} tendencies. They combine their primary strengths with secondary capabilities in ${secondaryFocus}, making them especially valuable in ventures that need both stable core execution and ${secondaryFocus}-style contribution.`;
+    const secondaryFocus = hybridAdditions[operatorType][secondaryType];
+    return `${name} shows a ${readiness} operator profile as an ${operatorType} with ${secondaryType} tendencies. They combine their primary strengths with secondary capabilities in ${secondaryFocus}, making them especially valuable in ventures that need both stable core execution and ${secondaryFocus}-style contribution.`;
   }
 
-  return baseSummaries[founderType];
+  return baseSummaries[operatorType];
 }
 
-// Get strengths for founder type
-export function getStrengths(founderType: FounderType): string[] {
-  const strengthsMap: Record<FounderType, string[]> = {
+// Get strengths for operator type
+export function getStrengths(operatorType: OperatorType): string[] {
+  const strengthsMap: Record<OperatorType, string[]> = {
     'Operational Leader': [
       'High ownership and follow-through',
       'Strong bias for action and detail orientation',
@@ -270,12 +270,12 @@ export function getStrengths(founderType: FounderType): string[] {
     ],
   };
 
-  return strengthsMap[founderType];
+  return strengthsMap[operatorType];
 }
 
-// Get weaknesses for founder type
-export function getWeaknesses(founderType: FounderType): string[] {
-  const weaknessesMap: Record<FounderType, string[]> = {
+// Get weaknesses for operator type
+export function getWeaknesses(operatorType: OperatorType): string[] {
+  const weaknessesMap: Record<OperatorType, string[]> = {
     'Operational Leader': [
       'May over-focus on internal process vs external opportunity',
       'Can be less comfortable with big unstructured vision work',
@@ -302,23 +302,23 @@ export function getWeaknesses(founderType: FounderType): string[] {
     ],
   };
 
-  return weaknessesMap[founderType];
+  return weaknessesMap[operatorType];
 }
 
 // Generate weakness summary
 export function generateWeaknessSummary(
   name: string,
-  founderType: FounderType,
-  secondaryType: FounderType | null
+  operatorType: OperatorType,
+  secondaryType: OperatorType | null
 ): string {
-  const summariesMap: Record<FounderType, string> = {
-    'Operational Leader': `The main development areas for this profile include making time for bigger-picture thinking, avoiding over-optimization of processes too early, and practicing delegation so they don't become a bottleneck. Supporting ${name} with a strong product or vision co-founder can unlock even more leverage.`,
-    'Product Architect': `Key growth areas include balancing product craft with commercial urgency, staying close to sales and adoption metrics, and making sure they ship fast enough to learn from the market. Pairing ${name} with a Growth Catalyst or Operational Leader can create a well-rounded founding team.`,
+  const summariesMap: Record<OperatorType, string> = {
+    'Operational Leader': `The main development areas for this profile include making time for bigger-picture thinking, avoiding over-optimization of processes too early, and practicing delegation so they don't become a bottleneck. Supporting ${name} with a strong product or vision co-operator can unlock even more leverage.`,
+    'Product Architect': `Key growth areas include balancing product craft with commercial urgency, staying close to sales and adoption metrics, and making sure they ship fast enough to learn from the market. Pairing ${name} with a Growth Catalyst or Operational Leader can create a well-rounded team.`,
     'Growth Catalyst': `${name} may benefit from strengthening execution discipline, staying tightly aligned with product and operations, and ensuring promises closely match reality. Partnering them with an Operational Leader or Product Architect helps turn generated demand into durable value.`,
     'Visionary Builder': `Development areas often include grounding the vision in near-term execution, staying close to operational and product realities, and building mechanisms for feedback and iteration. Surrounding ${name} with strong operators and product thinkers helps translate their vision into consistent progress.`,
   };
 
-  return summariesMap[founderType];
+  return summariesMap[operatorType];
 }
 
 // Identify top traits from dimension scores
@@ -347,7 +347,7 @@ export function calculateAssessmentResults(
   const primaryFounderType = determinePrimaryFounderType(ventureFitScores);
   const secondaryFounderType = determineSecondaryFounderType(ventureFitScores, primaryFounderType);
   
-  const primaryScore = getFounderTypeScore(primaryFounderType, ventureFitScores);
+  const primaryScore = getOperatorTypeScore(primaryFounderType, ventureFitScores);
   const confidenceLevel = getConfidenceLevel(primaryScore);
 
   const summary = generateSummary(applicantName, primaryFounderType, confidenceLevel, secondaryFounderType);

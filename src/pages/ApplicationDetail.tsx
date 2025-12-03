@@ -75,8 +75,8 @@ interface AssessmentResultData {
     decisionMaking: number;
     collaboration: number;
   };
-  primary_founder_type: string;
-  secondary_founder_type: string | null;
+  primary_operator_type: string;
+  secondary_operator_type: string | null;
   confidence_level: string;
   summary: string;
   strengths: string[];
@@ -212,7 +212,7 @@ export default function ApplicationDetail() {
                 venture_name: m.ventures?.name || 'Unknown',
                 industry: m.ventures?.industry || 'Unknown',
                 overall_score: m.overall_score,
-                founder_type_score: m.founder_type_score,
+                operator_type_score: m.operator_type_score,
                 dimension_score: m.dimension_score,
                 compatibility_score: m.compatibility_score,
                 match_reasons: m.match_reasons || [],
@@ -684,8 +684,8 @@ export default function ApplicationDetail() {
               dimensionScores={assessmentResults.dimension_scores}
               ventureFitScores={assessmentResults.venture_fit_scores}
               teamCompatibilityScores={assessmentResults.team_compatibility_scores}
-              primaryFounderType={assessmentResults.primary_founder_type}
-              secondaryFounderType={assessmentResults.secondary_founder_type}
+              primaryFounderType={assessmentResults.primary_operator_type}
+              secondaryFounderType={assessmentResults.secondary_operator_type}
               confidenceLevel={assessmentResults.confidence_level}
               summary={assessmentResults.summary}
               strengths={assessmentResults.strengths}

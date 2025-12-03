@@ -129,7 +129,7 @@ export function VentureMatchCard({
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 bg-background/60 rounded-md">
               <div className="text-lg font-semibold">{founderTypeScore}%</div>
-              <div className="text-xs text-muted-foreground">Founder Type</div>
+              <div className="text-xs text-muted-foreground">Operator Type</div>
             </div>
             <div className="p-2 bg-background/60 rounded-md">
               <div className="text-lg font-semibold">{dimensionScore}%</div>

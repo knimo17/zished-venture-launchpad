@@ -29,8 +29,8 @@ export interface VentureProfile {
   name: string;
   description: string;
   industry: string;
-  ideal_founder_type: string;
-  secondary_founder_type: string | null;
+  ideal_operator_type: string;
+  secondary_operator_type: string | null;
   dimension_weights: Record<string, number>;
   team_profile: Record<string, string>;
   suggested_roles: string[];
@@ -64,8 +64,8 @@ const WEIGHTS = {
   COMPATIBILITY: 0.2,
 };
 
-// Founder type scoring matrix
-const FOUNDER_TYPE_SCORES: Record<string, Record<string, number>> = {
+// Operator type scoring matrix
+const OPERATOR_TYPE_SCORES: Record<string, Record<string, number>> = {
   'Operational Leader': {
     'Operational Leader': 100,
     'Product Architect': 60,
@@ -115,9 +115,9 @@ const TEAM_COMPATIBILITY_MAP: Record<string, Record<string, number>> = {
 };
 
 /**
- * Calculate founder type score (40% of total)
+ * Calculate operator type score (40% of total)
  */
-function calculateFounderTypeScore(
+function calculateOperatorTypeScore(
   applicantPrimary: string,
   applicantSecondary: string | null,
   ventureIdeal: string,
@@ -134,7 +134,7 @@ function calculateFounderTypeScore(
     score = 75;
   } else {
     // Use scoring matrix for partial matches
-    score = FOUNDER_TYPE_SCORES[applicantPrimary]?.[ventureIdeal] || 50;
+    score = OPERATOR_TYPE_SCORES[applicantPrimary]?.[ventureIdeal] || 50;
   }
 
   return score;
@@ -211,7 +211,7 @@ function generateMatchReasons(
   const reasons: string[] = [];
   const { dimensionScores, primaryFounderType } = assessmentData;
 
-  // Founder type alignment
+  // Operator type alignment
   if (founderTypeScore >= 85) {
     reasons.push(
       `Strong ${primaryFounderType} profile aligns well with ${venture.name}'s operational needs`
@@ -273,7 +273,7 @@ function generateConcerns(
     concerns.push('May benefit from leadership development or co-lead structure');
   }
 
-  // Founder type mismatch
+  // Operator type mismatch
   if (founderTypeScore < 60) {
     concerns.push(
       `${assessmentData.primaryFounderType} style may require adaptation for this role`
@@ -338,11 +338,11 @@ export function calculateVentureMatch(
   assessmentData: AssessmentData,
   venture: VentureProfile
 ): VentureMatchResult {
-  const founderTypeScore = calculateFounderTypeScore(
+  const founderTypeScore = calculateOperatorTypeScore(
     assessmentData.primaryFounderType,
     assessmentData.secondaryFounderType,
-    venture.ideal_founder_type,
-    venture.secondary_founder_type
+    venture.ideal_operator_type,
+    venture.secondary_operator_type
   );
 
   const dimensionScore = calculateDimensionScore(

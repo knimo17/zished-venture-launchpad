@@ -342,8 +342,8 @@ export type Database = {
           confidence_level: string
           dimension_scores: Json
           id: string
-          primary_founder_type: string
-          secondary_founder_type: string | null
+          primary_operator_type: string
+          secondary_operator_type: string | null
           session_id: string
           strengths: string[]
           summary: string
@@ -357,8 +357,8 @@ export type Database = {
           confidence_level: string
           dimension_scores: Json
           id?: string
-          primary_founder_type: string
-          secondary_founder_type?: string | null
+          primary_operator_type: string
+          secondary_operator_type?: string | null
           session_id: string
           strengths: string[]
           summary: string
@@ -372,8 +372,8 @@ export type Database = {
           confidence_level?: string
           dimension_scores?: Json
           id?: string
-          primary_founder_type?: string
-          secondary_founder_type?: string | null
+          primary_operator_type?: string
+          secondary_operator_type?: string | null
           session_id?: string
           strengths?: string[]
           summary?: string
@@ -530,9 +530,9 @@ export type Database = {
           concerns: string[]
           created_at: string
           dimension_score: number
-          founder_type_score: number
           id: string
           match_reasons: string[]
+          operator_type_score: number
           overall_score: number
           suggested_role: string | null
           venture_id: string
@@ -543,9 +543,9 @@ export type Database = {
           concerns?: string[]
           created_at?: string
           dimension_score: number
-          founder_type_score: number
           id?: string
           match_reasons?: string[]
+          operator_type_score: number
           overall_score: number
           suggested_role?: string | null
           venture_id: string
@@ -556,9 +556,9 @@ export type Database = {
           concerns?: string[]
           created_at?: string
           dimension_score?: number
-          founder_type_score?: number
           id?: string
           match_reasons?: string[]
+          operator_type_score?: number
           overall_score?: number
           suggested_role?: string | null
           venture_id?: string
@@ -586,11 +586,11 @@ export type Database = {
           description: string
           dimension_weights: Json
           id: string
-          ideal_founder_type: string
+          ideal_operator_type: string
           industry: string
           is_active: boolean
           name: string
-          secondary_founder_type: string | null
+          secondary_operator_type: string | null
           suggested_roles: string[]
           team_profile: Json
           updated_at: string
@@ -600,11 +600,11 @@ export type Database = {
           description: string
           dimension_weights?: Json
           id?: string
-          ideal_founder_type: string
+          ideal_operator_type: string
           industry: string
           is_active?: boolean
           name: string
-          secondary_founder_type?: string | null
+          secondary_operator_type?: string | null
           suggested_roles?: string[]
           team_profile?: Json
           updated_at?: string
@@ -614,11 +614,11 @@ export type Database = {
           description?: string
           dimension_weights?: Json
           id?: string
-          ideal_founder_type?: string
+          ideal_operator_type?: string
           industry?: string
           is_active?: boolean
           name?: string
-          secondary_founder_type?: string | null
+          secondary_operator_type?: string | null
           suggested_roles?: string[]
           team_profile?: Json
           updated_at?: string

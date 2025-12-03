@@ -22,8 +22,8 @@ interface InterviewQuestionsRequest {
     growth: number;
     vision: number;
   };
-  primary_founder_type: string;
-  secondary_founder_type: string | null;
+  primary_operator_type: string;
+  secondary_operator_type: string | null;
   confidence_level: string;
   venture_matches: Array<{
     venture_id: string;
@@ -64,8 +64,8 @@ serve(async (req) => {
 
 Candidate Profile:
 - Name: ${data.applicant_name}
-- Primary Founder Type: ${data.primary_founder_type} (${data.confidence_level} confidence)
-${data.secondary_founder_type ? `- Secondary Type: ${data.secondary_founder_type}` : ''}
+- Primary Operator Type: ${data.primary_operator_type} (${data.confidence_level} confidence)
+${data.secondary_operator_type ? `- Secondary Type: ${data.secondary_operator_type}` : ''}
 
 Scores (out of 50):
 - Ownership: ${scores.ownership}
