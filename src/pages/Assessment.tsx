@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
 import { calculateAllVentureMatches, VentureProfile, AssessmentData } from '@/lib/ventureMatching';
-import { CheckCircle2, AlertTriangle, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -31,14 +30,6 @@ interface Session {
 
 interface Application {
   name: string;
-}
-
-interface AIInterviewQuestion {
-  id: string;
-  question_text: string;
-  question_context: string;
-  probing_area: string;
-  question_order: number;
 }
 
 const likertLabels = [
@@ -67,7 +58,7 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
   return result;
 }
 
-type AssessmentPhase = 'welcome' | 'likert' | 'generating_ai' | 'ai_interview' | 'submitting';
+type AssessmentPhase = 'welcome' | 'likert' | 'submitting';
 
 export default function Assessment() {
   const { token } = useParams();
@@ -81,19 +72,19 @@ export default function Assessment() {
   const [responses, setResponses] = useState<Record<string, number>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  
-  // AI Interview state
   const [phase, setPhase] = useState<AssessmentPhase>('welcome');
-  const [aiQuestions, setAiQuestions] = useState<AIInterviewQuestion[]>([]);
-  const [aiResponses, setAiResponses] = useState<Record<string, string>>({});
-  const [currentAiQuestionIndex, setCurrentAiQuestionIndex] = useState(0);
-  const [assessmentResultId, setAssessmentResultId] = useState<string | null>(null);
 
   // Shuffle questions based on session ID for consistent ordering
   const shuffledQuestions = useMemo(() => {
     if (!session || questions.length === 0) return [];
     return seededShuffle(questions, session.id);
   }, [questions, session?.id]);
+
+  // Use ref to track total questions for stable closure
+  const totalQuestionsRef = useRef(0);
+  useEffect(() => {
+    totalQuestionsRef.current = shuffledQuestions.length;
+  }, [shuffledQuestions.length]);
 
   // Load session, questions, and existing responses
   useEffect(() => {
@@ -201,10 +192,11 @@ export default function Assessment() {
       // Update local state
       setResponses((prev) => ({ ...prev, [questionId]: value }));
 
-      // Auto-advance to next question after a brief delay
+      // Auto-advance to next question after a brief delay using ref for stable value
       setTimeout(() => {
+        const maxIndex = totalQuestionsRef.current - 1;
         setCurrentQuestionIndex((prev) => {
-          if (prev < shuffledQuestions.length - 1) {
+          if (prev < maxIndex) {
             return prev + 1;
           }
           return prev;
@@ -219,7 +211,7 @@ export default function Assessment() {
         variant: 'destructive',
       });
     }
-  }, [session, shuffledQuestions.length, toast]);
+  }, [session, toast]);
 
   // Start the assessment
   const handleStart = async () => {
@@ -250,8 +242,8 @@ export default function Assessment() {
     saveResponseAndAdvance(questionId, value);
   };
 
-  // Complete Likert phase and generate AI questions
-  const completeLikertPhase = async () => {
+  // Complete assessment and process results
+  const completeAssessment = async () => {
     if (!session || !application) return;
 
     const answeredCount = Object.keys(responses).length;
@@ -264,7 +256,8 @@ export default function Assessment() {
       return;
     }
 
-    setPhase('generating_ai');
+    setPhase('submitting');
+    setSubmitting(true);
 
     try {
       // Prepare responses with question data for scoring (use original question order for scoring)
@@ -299,7 +292,6 @@ export default function Assessment() {
         .single();
 
       if (resultsError) throw resultsError;
-      setAssessmentResultId(resultData.id);
 
       // Fetch ventures and calculate matches
       const { data: ventures } = await supabase
@@ -338,7 +330,7 @@ export default function Assessment() {
         await supabase.from('venture_matches').insert(matchInserts);
       }
 
-      // Generate AI interview questions
+      // Generate AI interview questions for admins (fire and forget)
       const ventureMatchesForAI = ventureMatches.slice(0, 3).map((m: any) => {
         const venture = ventures?.find((v: any) => v.id === m.ventureId);
         return {
@@ -351,7 +343,8 @@ export default function Assessment() {
         };
       });
 
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-interview-questions', {
+      // Generate AI interview questions in background (for admin use only)
+      supabase.functions.invoke('generate-interview-questions', {
         body: {
           assessment_result_id: resultData.id,
           applicant_name: application.name,
@@ -362,132 +355,22 @@ export default function Assessment() {
           confidence_level: results.confidenceLevel,
           venture_matches: ventureMatchesForAI,
         },
-      });
+      }).catch((err) => console.error('AI interview questions error:', err));
 
-      if (aiError) {
-        console.error('Error generating AI questions:', aiError);
-        // If AI fails, skip to completion
-        await completeAssessment(resultData.id, ventureMatchesForAI);
-        return;
-      }
-
-      if (aiData?.questions && aiData.questions.length > 0) {
-        setAiQuestions(aiData.questions);
-        setPhase('ai_interview');
-        
-        // Update session interview status
-        await supabase
-          .from('assessment_sessions')
-          .update({ interview_status: 'in_progress' })
-          .eq('id', session.id);
-      } else {
-        // No AI questions, complete assessment
-        await completeAssessment(resultData.id, ventureMatchesForAI);
-      }
-
-    } catch (error: any) {
-      console.error('Error completing Likert phase:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to process assessment. Please try again.',
-        variant: 'destructive',
-      });
-      setPhase('likert');
-    }
-  };
-
-  // Save AI interview response
-  const saveAiResponse = async (questionId: string, responseText: string) => {
-    if (!session) return;
-
-    setAiResponses((prev) => ({ ...prev, [questionId]: responseText }));
-
-    try {
-      await supabase.from('ai_interview_responses').upsert({
-        question_id: questionId,
-        session_id: session.id,
-        response_text: responseText,
-      }, {
-        onConflict: 'question_id,session_id',
-      });
-    } catch (error) {
-      console.error('Error saving AI response:', error);
-    }
-  };
-
-  // Move to next AI question
-  const nextAiQuestion = () => {
-    const currentQuestion = aiQuestions[currentAiQuestionIndex];
-    const currentResponse = aiResponses[currentQuestion.id] || '';
-
-    if (currentResponse.trim().length < 50) {
-      toast({
-        title: 'Response Too Short',
-        description: 'Please provide a more detailed response (at least 50 characters).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (currentAiQuestionIndex < aiQuestions.length - 1) {
-      setCurrentAiQuestionIndex((prev) => prev + 1);
-    }
-  };
-
-  // Complete the entire assessment
-  const completeAssessment = async (resultId?: string, ventureMatches?: any[]) => {
-    if (!session) return;
-
-    setPhase('submitting');
-    setSubmitting(true);
-
-    try {
-      const finalResultId = resultId || assessmentResultId;
-
-      // Generate AI evaluation in background (don't wait for it)
-      if (finalResultId && application) {
-        const { data: resultData } = await supabase
-          .from('assessment_results')
-          .select('*')
-          .eq('id', finalResultId)
-          .single();
-
-        if (resultData) {
-          // Fetch venture matches if not provided
-          let matches = ventureMatches;
-          if (!matches) {
-            const { data: matchesData } = await supabase
-              .from('venture_matches')
-              .select('*, ventures(name, industry)')
-              .eq('assessment_result_id', finalResultId)
-              .order('overall_score', { ascending: false });
-            
-            matches = matchesData?.map((m: any) => ({
-              venture_id: m.venture_id,
-              venture_name: m.ventures?.name || 'Unknown',
-              industry: m.ventures?.industry || 'Unknown',
-              overall_score: m.overall_score,
-              match_reasons: m.match_reasons || [],
-              concerns: m.concerns || [],
-            })) || [];
-          }
-
-          // Fire and forget - don't await
-          supabase.functions.invoke('generate-ai-evaluation', {
-            body: {
-              assessment_result_id: finalResultId,
-              applicant_name: application.name,
-              dimension_scores: resultData.dimension_scores,
-              venture_fit_scores: resultData.venture_fit_scores,
-              team_compatibility_scores: resultData.team_compatibility_scores,
-              primary_founder_type: resultData.primary_founder_type,
-              secondary_founder_type: resultData.secondary_founder_type,
-              confidence_level: resultData.confidence_level,
-              venture_matches: matches,
-            },
-          }).catch((err) => console.error('AI evaluation error:', err));
-        }
-      }
+      // Generate AI evaluation in background
+      supabase.functions.invoke('generate-ai-evaluation', {
+        body: {
+          assessment_result_id: resultData.id,
+          applicant_name: application.name,
+          dimension_scores: results.dimensionScores,
+          venture_fit_scores: results.ventureFitScores,
+          team_compatibility_scores: results.teamCompatibilityScores,
+          primary_founder_type: results.primaryFounderType,
+          secondary_founder_type: results.secondaryFounderType,
+          confidence_level: results.confidenceLevel,
+          venture_matches: ventureMatchesForAI,
+        },
+      }).catch((err) => console.error('AI evaluation error:', err));
 
       // Update session status
       const { error: sessionError } = await supabase
@@ -510,24 +393,8 @@ export default function Assessment() {
         variant: 'destructive',
       });
       setSubmitting(false);
+      setPhase('likert');
     }
-  };
-
-  // Handle final submission
-  const handleFinalSubmit = async () => {
-    const currentQuestion = aiQuestions[currentAiQuestionIndex];
-    const currentResponse = aiResponses[currentQuestion?.id] || '';
-
-    if (currentQuestion && currentResponse.trim().length < 50) {
-      toast({
-        title: 'Response Too Short',
-        description: 'Please provide a more detailed response (at least 50 characters).',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    await completeAssessment();
   };
 
   if (loading) {
@@ -566,15 +433,11 @@ export default function Assessment() {
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span><strong>Part 1:</strong> 70 questions about your founder profile (15-20 minutes)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span><strong>Part 2:</strong> 5-7 personalized follow-up questions generated based on your profile (5-10 minutes)</span>
+                    <span><strong>70 questions</strong> about your founder profile (15-20 minutes)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Clock className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span>Total time: approximately 20-30 minutes</span>
+                    <span>Total time: approximately 15-20 minutes</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
@@ -603,7 +466,7 @@ export default function Assessment() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="font-bold text-destructive">•</span>
-                    <span><strong>Set aside time:</strong> Make sure you have 30+ minutes of uninterrupted time.</span>
+                    <span><strong>Set aside time:</strong> Make sure you have 20+ minutes of uninterrupted time.</span>
                   </li>
                 </ul>
               </div>
@@ -622,110 +485,23 @@ export default function Assessment() {
     );
   }
 
-  // Generating AI questions
-  if (phase === 'generating_ai') {
+  // Submitting phase
+  if (phase === 'submitting') {
     return (
       <div className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="py-12 text-center space-y-6">
-              <Sparkles className="h-12 w-12 text-primary mx-auto animate-pulse" />
+              <Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" />
               <div>
-                <h2 className="text-2xl font-semibold mb-2">Analyzing Your Profile</h2>
+                <h2 className="text-2xl font-semibold mb-2">Processing Your Assessment</h2>
                 <p className="text-muted-foreground">
-                  We're generating personalized follow-up questions based on your responses...
+                  Please wait while we analyze your responses...
                 </p>
               </div>
               <Progress value={66} className="w-64 mx-auto" />
             </CardContent>
           </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // AI Interview phase
-  if (phase === 'ai_interview' && aiQuestions.length > 0) {
-    const currentAiQ = aiQuestions[currentAiQuestionIndex];
-    const currentResponse = aiResponses[currentAiQ.id] || '';
-    const isLastAiQuestion = currentAiQuestionIndex === aiQuestions.length - 1;
-    const aiProgress = ((currentAiQuestionIndex + 1) / aiQuestions.length) * 100;
-
-    return (
-      <div className="min-h-screen bg-background py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Phase indicator */}
-          <div className="mb-6 text-center">
-            <Badge variant="secondary" className="mb-2">
-              <Sparkles className="h-3 w-3 mr-1" />
-              Part 2: Personalized Questions
-            </Badge>
-          </div>
-
-          {/* Progress Header */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-muted-foreground">
-                Question {currentAiQuestionIndex + 1} of {aiQuestions.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {Math.round(aiProgress)}% complete
-              </span>
-            </div>
-            <Progress value={aiProgress} className="h-2" />
-          </div>
-
-          {/* Current AI Question */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-xl leading-relaxed">
-                {currentAiQ.question_text}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                value={currentResponse}
-                onChange={(e) => saveAiResponse(currentAiQ.id, e.target.value)}
-                placeholder="Share your thoughts in 150-400 words..."
-                className="min-h-[200px]"
-              />
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
-                <span>{currentResponse.length} characters</span>
-                <span className={currentResponse.length >= 50 ? 'text-green-500' : ''}>
-                  {currentResponse.length >= 50 ? '✓ Minimum met' : 'Minimum: 50 characters'}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Navigation */}
-          <div className="flex justify-end">
-            {isLastAiQuestion ? (
-              <Button
-                onClick={handleFinalSubmit}
-                disabled={submitting || currentResponse.length < 50}
-                size="lg"
-                className="px-8"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Assessment'
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={nextAiQuestion}
-                disabled={currentResponse.length < 50}
-                size="lg"
-              >
-                Next Question
-              </Button>
-            )}
-          </div>
         </div>
       </div>
     );
@@ -738,7 +514,7 @@ export default function Assessment() {
         {/* Phase indicator */}
         <div className="mb-6 text-center">
           <Badge variant="outline" className="mb-2">
-            Part 1: Profile Assessment
+            Profile Assessment
           </Badge>
         </div>
 
@@ -746,7 +522,7 @@ export default function Assessment() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">
-              Question {answeredCount + 1} of {shuffledQuestions.length}
+              Question {currentQuestionIndex + 1} of {shuffledQuestions.length}
             </span>
             <span className="text-sm text-muted-foreground">
               {answeredCount} answered
@@ -791,17 +567,23 @@ export default function Assessment() {
           </Card>
         )}
 
-        {/* Continue to Part 2 button (only shows on last question when all answered) */}
+        {/* Submit button (only shows on last question when all answered) */}
         {isLastLikertQuestion && allLikertAnswered && (
           <div className="flex justify-center">
             <Button
-              onClick={completeLikertPhase}
+              onClick={completeAssessment}
               disabled={submitting}
               size="lg"
               className="px-8"
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Continue to Part 2
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Submit Assessment'
+              )}
             </Button>
           </div>
         )}
