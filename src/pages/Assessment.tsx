@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
 import { calculateAllVentureMatches, VentureProfile, AssessmentData } from '@/lib/ventureMatching';
-import { ChevronLeft, ChevronRight, Save, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -38,6 +38,24 @@ const likertLabels = [
   { value: 5, label: 'Strongly Agree' },
 ];
 
+// Seeded random shuffle for consistent ordering per session
+function seededShuffle<T>(array: T[], seed: string): T[] {
+  const result = [...array];
+  let seedNum = 0;
+  for (let i = 0; i < seed.length; i++) {
+    seedNum = ((seedNum << 5) - seedNum) + seed.charCodeAt(i);
+    seedNum = seedNum & seedNum;
+  }
+  
+  for (let i = result.length - 1; i > 0; i--) {
+    seedNum = (seedNum * 1103515245 + 12345) & 0x7fffffff;
+    const j = seedNum % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  
+  return result;
+}
+
 export default function Assessment() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -48,10 +66,15 @@ export default function Assessment() {
   const [application, setApplication] = useState<Application | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Record<string, number>>({});
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [saving, setSaving] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+
+  // Shuffle questions based on session ID for consistent ordering
+  const shuffledQuestions = useMemo(() => {
+    if (!session || questions.length === 0) return [];
+    return seededShuffle(questions, session.id);
+  }, [questions, session?.id]);
 
   // Load session, questions, and existing responses
   useEffect(() => {
@@ -84,8 +107,25 @@ export default function Assessment() {
         return;
       }
 
+      // If already started, check if they have responses - if so, they can't continue
+      if (sessionData.status === 'in_progress') {
+        const { data: existingResponses } = await supabase
+          .from('assessment_responses')
+          .select('id')
+          .eq('session_id', sessionData.id)
+          .limit(1);
+
+        if (existingResponses && existingResponses.length > 0) {
+          toast({
+            title: 'Assessment In Progress',
+            description: 'You have already started this assessment. Please complete it in your current browser session.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       setSession(sessionData);
-      setCurrentQuestion(sessionData.current_question || 1);
       setStarted(sessionData.status === 'in_progress');
 
       // Get application name
@@ -108,19 +148,6 @@ export default function Assessment() {
       if (questionsError) throw questionsError;
       setQuestions(questionsData || []);
 
-      // Load existing responses
-      const { data: responsesData } = await supabase
-        .from('assessment_responses')
-        .select('question_id, response')
-        .eq('session_id', sessionData.id);
-
-      if (responsesData) {
-        const responsesMap: Record<string, number> = {};
-        responsesData.forEach((r) => {
-          responsesMap[r.question_id] = r.response;
-        });
-        setResponses(responsesMap);
-      }
     } catch (error: any) {
       console.error('Error loading assessment:', error);
       toast({
@@ -133,11 +160,10 @@ export default function Assessment() {
     }
   };
 
-  // Save a single response
-  const saveResponse = useCallback(async (questionId: string, value: number) => {
+  // Save a single response and auto-advance
+  const saveResponseAndAdvance = useCallback(async (questionId: string, value: number) => {
     if (!session) return;
 
-    setSaving(true);
     try {
       const { error } = await supabase
         .from('assessment_responses')
@@ -150,26 +176,26 @@ export default function Assessment() {
         });
 
       if (error) throw error;
+
+      // Update local state
+      setResponses((prev) => ({ ...prev, [questionId]: value }));
+
+      // Auto-advance to next question after a brief delay
+      setTimeout(() => {
+        if (currentQuestionIndex < shuffledQuestions.length - 1) {
+          setCurrentQuestionIndex((prev) => prev + 1);
+        }
+      }, 300);
+
     } catch (error: any) {
       console.error('Error saving response:', error);
-    } finally {
-      setSaving(false);
+      toast({
+        title: 'Error',
+        description: 'Failed to save your response. Please try again.',
+        variant: 'destructive',
+      });
     }
-  }, [session]);
-
-  // Update current question position
-  const updateCurrentQuestion = useCallback(async (questionNum: number) => {
-    if (!session) return;
-
-    try {
-      await supabase
-        .from('assessment_sessions')
-        .update({ current_question: questionNum })
-        .eq('id', session.id);
-    } catch (error) {
-      console.error('Error updating current question:', error);
-    }
-  }, [session]);
+  }, [session, currentQuestionIndex, shuffledQuestions.length, toast]);
 
   // Start the assessment
   const handleStart = async () => {
@@ -197,26 +223,7 @@ export default function Assessment() {
 
   // Handle response selection
   const handleResponseChange = (questionId: string, value: number) => {
-    setResponses((prev) => ({ ...prev, [questionId]: value }));
-    saveResponse(questionId, value);
-  };
-
-  // Navigate to next question
-  const handleNext = () => {
-    if (currentQuestion < 70) {
-      const next = currentQuestion + 1;
-      setCurrentQuestion(next);
-      updateCurrentQuestion(next);
-    }
-  };
-
-  // Navigate to previous question
-  const handlePrevious = () => {
-    if (currentQuestion > 1) {
-      const prev = currentQuestion - 1;
-      setCurrentQuestion(prev);
-      updateCurrentQuestion(prev);
-    }
+    saveResponseAndAdvance(questionId, value);
   };
 
   // Submit the assessment
@@ -224,10 +231,10 @@ export default function Assessment() {
     if (!session || !application) return;
 
     const answeredCount = Object.keys(responses).length;
-    if (answeredCount < 70) {
+    if (answeredCount < shuffledQuestions.length) {
       toast({
         title: 'Incomplete Assessment',
-        description: `Please answer all questions. ${70 - answeredCount} remaining.`,
+        description: `Please answer all questions. ${shuffledQuestions.length - answeredCount} remaining.`,
         variant: 'destructive',
       });
       return;
@@ -235,7 +242,7 @@ export default function Assessment() {
 
     setSubmitting(true);
     try {
-      // Prepare responses with question data for scoring
+      // Prepare responses with question data for scoring (use original question order for scoring)
       const responsesWithData: AssessmentResponse[] = questions.map((q) => ({
         question_id: q.id,
         question_number: q.question_number,
@@ -247,7 +254,7 @@ export default function Assessment() {
       // Calculate results
       const results = calculateAssessmentResults(responsesWithData, application.name);
 
-      // Save results - cast to any to handle Supabase Json type
+      // Save results
       const { data: resultData, error: resultsError } = await supabase
         .from('assessment_results')
         .insert({
@@ -340,11 +347,13 @@ export default function Assessment() {
     return null;
   }
 
-  const currentQ = questions.find((q) => q.question_number === currentQuestion);
+  const currentQ = shuffledQuestions[currentQuestionIndex];
   const answeredCount = Object.keys(responses).length;
-  const progress = (answeredCount / 70) * 100;
+  const progress = (answeredCount / shuffledQuestions.length) * 100;
+  const isLastQuestion = currentQuestionIndex === shuffledQuestions.length - 1;
+  const allAnswered = answeredCount === shuffledQuestions.length;
 
-  // Welcome screen
+  // Welcome screen with updated instructions
   if (!started) {
     return (
       <div className="min-h-screen bg-background py-12 px-4">
@@ -365,16 +374,37 @@ export default function Assessment() {
                     <span>70 questions designed to understand your founder profile</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <Clock className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                     <span>Takes approximately 15-20 minutes to complete</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span>Your progress is saved automatically - you can continue later</span>
+                    <span>There are no right or wrong answers - be honest and authentic</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-destructive/10 border border-destructive/30 p-6 rounded-lg space-y-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Important Instructions
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-destructive">•</span>
+                    <span><strong>Complete in one session:</strong> You must complete the entire assessment in one sitting. You cannot save and return later.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span>There are no right or wrong answers - be honest and authentic</span>
+                    <span className="font-bold text-destructive">•</span>
+                    <span><strong>No going back:</strong> Once you answer a question, you cannot change your response or go back to previous questions.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-destructive">•</span>
+                    <span><strong>One attempt only:</strong> This assessment can only be taken once per application.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-destructive">•</span>
+                    <span><strong>Set aside time:</strong> Make sure you have 20+ minutes of uninterrupted time before starting.</span>
                   </li>
                 </ul>
               </div>
@@ -384,7 +414,7 @@ export default function Assessment() {
               </p>
 
               <Button onClick={handleStart} className="w-full" size="lg">
-                Start Assessment
+                I Understand - Start Assessment
               </Button>
             </CardContent>
           </Card>
@@ -400,30 +430,19 @@ export default function Assessment() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">
-              Question {currentQuestion} of 70
+              Question {currentQuestionIndex + 1} of {shuffledQuestions.length}
             </span>
             <span className="text-sm text-muted-foreground">
               {answeredCount} answered
             </span>
           </div>
           <Progress value={progress} className="h-2" />
-          {saving && (
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Save className="h-3 w-3" /> Saving...
-            </p>
-          )}
         </div>
 
         {/* Current Question */}
         {currentQ && (
           <Card className="mb-6">
             <CardHeader>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs bg-muted px-2 py-1 rounded">
-                  {currentQ.dimension}
-                  {currentQ.sub_dimension && ` • ${currentQ.sub_dimension}`}
-                </span>
-              </div>
               <CardTitle className="text-xl leading-relaxed">
                 {currentQ.question_text}
               </CardTitle>
@@ -459,39 +478,24 @@ export default function Assessment() {
           </Card>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentQuestion === 1}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-
-          <div className="flex gap-2">
-            {currentQuestion < 70 ? (
-              <Button onClick={handleNext}>
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting || answeredCount < 70}
-                className="bg-primary"
-              >
-                {submitting ? 'Submitting...' : 'Submit Assessment'}
-              </Button>
-            )}
+        {/* Submit button (only shows on last question when all answered) */}
+        {isLastQuestion && allAnswered && (
+          <div className="flex justify-center">
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              size="lg"
+              className="px-8"
+            >
+              {submitting ? 'Submitting...' : 'Submit Assessment'}
+            </Button>
           </div>
-        </div>
+        )}
 
-        {/* Quick navigation hint */}
-        {answeredCount < 70 && currentQuestion === 70 && (
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            {70 - answeredCount} questions remaining. Navigate back to answer them.
+        {/* Remaining questions hint */}
+        {isLastQuestion && !allAnswered && (
+          <p className="text-center text-sm text-muted-foreground">
+            Please answer this question to complete the assessment.
           </p>
         )}
       </div>
