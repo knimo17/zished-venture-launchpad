@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Printer, Download, Save } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { AssessmentResults } from '@/components/AssessmentResults';
 import {
   Select,
   SelectContent,
@@ -40,6 +41,44 @@ interface Application {
   } | null;
 }
 
+interface AssessmentSession {
+  id: string;
+  status: string;
+  sent_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+interface AssessmentResultData {
+  dimension_scores: {
+    ownership: number;
+    execution: number;
+    hustle: number;
+    problemSolving: number;
+    leadership: number;
+  };
+  venture_fit_scores: {
+    operator: number;
+    product: number;
+    growth: number;
+    vision: number;
+  };
+  team_compatibility_scores: {
+    workingStyle: number;
+    communication: number;
+    conflictResponse: number;
+    decisionMaking: number;
+    collaboration: number;
+  };
+  primary_founder_type: string;
+  secondary_founder_type: string | null;
+  confidence_level: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  weakness_summary: string;
+}
+
 export default function ApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -47,11 +86,15 @@ export default function ApplicationDetail() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [assessmentSession, setAssessmentSession] = useState<AssessmentSession | null>(null);
+  const [assessmentResults, setAssessmentResults] = useState<AssessmentResultData | null>(null);
+  const [sendingAssessment, setSendingAssessment] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (id) {
       fetchApplication();
+      fetchAssessmentData();
     }
   }, [id]);
 
@@ -81,6 +124,66 @@ export default function ApplicationDetail() {
       navigate('/admin/dashboard');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAssessmentData = async () => {
+    try {
+      // Fetch assessment session
+      const { data: sessionData } = await supabase
+        .from('assessment_sessions')
+        .select('*')
+        .eq('application_id', id)
+        .maybeSingle();
+
+      if (sessionData) {
+        setAssessmentSession(sessionData);
+
+        // If completed, fetch results
+        if (sessionData.status === 'completed') {
+          const { data: resultsData } = await supabase
+            .from('assessment_results')
+            .select('*')
+            .eq('session_id', sessionData.id)
+            .maybeSingle();
+
+          if (resultsData) {
+            setAssessmentResults(resultsData as unknown as AssessmentResultData);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching assessment data:', error);
+    }
+  };
+
+  const sendAssessment = async () => {
+    if (!application) return;
+
+    setSendingAssessment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-assessment', {
+        body: { application_id: application.id },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Assessment Sent',
+        description: `Assessment email sent to ${application.email}`,
+      });
+
+      // Refresh assessment data
+      fetchAssessmentData();
+    } catch (error: any) {
+      console.error('Error sending assessment:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send assessment',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingAssessment(false);
     }
   };
 
@@ -162,6 +265,26 @@ export default function ApplicationDetail() {
     } finally {
       setSavingNotes(false);
     }
+  };
+
+  const getAssessmentStatusBadge = () => {
+    if (!assessmentSession) return null;
+
+    const statusConfig = {
+      pending: { label: 'Sent - Pending', icon: Clock, variant: 'outline' as const },
+      in_progress: { label: 'In Progress', icon: AlertCircle, variant: 'secondary' as const },
+      completed: { label: 'Completed', icon: CheckCircle, variant: 'default' as const },
+    };
+
+    const config = statusConfig[assessmentSession.status as keyof typeof statusConfig] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant} className="flex items-center gap-1">
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -341,6 +464,60 @@ export default function ApplicationDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Assessment Section */}
+        <Card className="mb-6 print:hidden">
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg">Founder Assessment</CardTitle>
+              {getAssessmentStatusBadge()}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!assessmentSession ? (
+              <div className="flex items-center justify-between">
+                <p className="text-muted-foreground">
+                  Send a 70-question assessment to evaluate this applicant's founder profile.
+                </p>
+                <Button onClick={sendAssessment} disabled={sendingAssessment}>
+                  <Send className="mr-2 h-4 w-4" />
+                  {sendingAssessment ? 'Sending...' : 'Send Assessment'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>Sent: {new Date(assessmentSession.sent_at).toLocaleString()}</span>
+                  {assessmentSession.started_at && (
+                    <span>Started: {new Date(assessmentSession.started_at).toLocaleString()}</span>
+                  )}
+                  {assessmentSession.completed_at && (
+                    <span>Completed: {new Date(assessmentSession.completed_at).toLocaleString()}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Assessment Results */}
+        {assessmentResults && (
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-4">Assessment Results</h2>
+            <AssessmentResults
+              dimensionScores={assessmentResults.dimension_scores}
+              ventureFitScores={assessmentResults.venture_fit_scores}
+              teamCompatibilityScores={assessmentResults.team_compatibility_scores}
+              primaryFounderType={assessmentResults.primary_founder_type}
+              secondaryFounderType={assessmentResults.secondary_founder_type}
+              confidenceLevel={assessmentResults.confidence_level}
+              summary={assessmentResults.summary}
+              strengths={assessmentResults.strengths}
+              weaknesses={assessmentResults.weaknesses}
+              weaknessSummary={assessmentResults.weakness_summary}
+            />
+          </div>
+        )}
 
         {questions.map((q, index) => (
           <Card key={index} className="mb-6">
