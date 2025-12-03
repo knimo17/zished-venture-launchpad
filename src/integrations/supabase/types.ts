@@ -88,6 +88,178 @@ export type Database = {
           },
         ]
       }
+      assessment_questions: {
+        Row: {
+          created_at: string
+          dimension: string
+          id: string
+          question_number: number
+          question_text: string
+          sub_dimension: string | null
+        }
+        Insert: {
+          created_at?: string
+          dimension: string
+          id?: string
+          question_number: number
+          question_text: string
+          sub_dimension?: string | null
+        }
+        Update: {
+          created_at?: string
+          dimension?: string
+          id?: string
+          question_number?: number
+          question_text?: string
+          sub_dimension?: string | null
+        }
+        Relationships: []
+      }
+      assessment_responses: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          response: number
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          response: number
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          response?: number
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_results: {
+        Row: {
+          calculated_at: string
+          confidence_level: string
+          dimension_scores: Json
+          id: string
+          primary_founder_type: string
+          secondary_founder_type: string | null
+          session_id: string
+          strengths: string[]
+          summary: string
+          team_compatibility_scores: Json
+          venture_fit_scores: Json
+          weakness_summary: string
+          weaknesses: string[]
+        }
+        Insert: {
+          calculated_at?: string
+          confidence_level: string
+          dimension_scores: Json
+          id?: string
+          primary_founder_type: string
+          secondary_founder_type?: string | null
+          session_id: string
+          strengths: string[]
+          summary: string
+          team_compatibility_scores: Json
+          venture_fit_scores: Json
+          weakness_summary: string
+          weaknesses: string[]
+        }
+        Update: {
+          calculated_at?: string
+          confidence_level?: string
+          dimension_scores?: Json
+          id?: string
+          primary_founder_type?: string
+          secondary_founder_type?: string | null
+          session_id?: string
+          strengths?: string[]
+          summary?: string
+          team_compatibility_scores?: Json
+          venture_fit_scores?: Json
+          weakness_summary?: string
+          weaknesses?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_results_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "assessment_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_sessions: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string
+          current_question: number
+          id: string
+          sent_at: string
+          started_at: string | null
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_question?: number
+          id?: string
+          sent_at?: string
+          started_at?: string | null
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_question?: number
+          id?: string
+          sent_at?: string
+          started_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_sessions_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internships: {
         Row: {
           created_at: string
