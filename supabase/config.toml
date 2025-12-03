@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.send-assessment]
 verify_jwt = false
+
+[functions.generate-ai-evaluation]
+verify_jwt = false
+
+[functions.generate-interview-questions]
+verify_jwt = false

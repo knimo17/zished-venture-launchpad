@@ -14,6 +14,185 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_evaluation: {
+        Row: {
+          assessment_result_id: string
+          created_at: string
+          id: string
+          overall_recommendation: string
+          personalized_growth_areas: Json
+          personalized_strengths: Json
+          personalized_summary: string
+          recommendation_reasoning: string
+          red_flags: string[]
+          response_patterns: Json
+        }
+        Insert: {
+          assessment_result_id: string
+          created_at?: string
+          id?: string
+          overall_recommendation: string
+          personalized_growth_areas?: Json
+          personalized_strengths?: Json
+          personalized_summary: string
+          recommendation_reasoning: string
+          red_flags?: string[]
+          response_patterns?: Json
+        }
+        Update: {
+          assessment_result_id?: string
+          created_at?: string
+          id?: string
+          overall_recommendation?: string
+          personalized_growth_areas?: Json
+          personalized_strengths?: Json
+          personalized_summary?: string
+          recommendation_reasoning?: string
+          red_flags?: string[]
+          response_patterns?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_evaluation_assessment_result_id_fkey"
+            columns: ["assessment_result_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_interview_questions: {
+        Row: {
+          assessment_result_id: string
+          created_at: string
+          id: string
+          probing_area: string
+          question_context: string
+          question_order: number
+          question_text: string
+          related_venture_id: string | null
+        }
+        Insert: {
+          assessment_result_id: string
+          created_at?: string
+          id?: string
+          probing_area: string
+          question_context: string
+          question_order: number
+          question_text: string
+          related_venture_id?: string | null
+        }
+        Update: {
+          assessment_result_id?: string
+          created_at?: string
+          id?: string
+          probing_area?: string
+          question_context?: string
+          question_order?: number
+          question_text?: string
+          related_venture_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_interview_questions_assessment_result_id_fkey"
+            columns: ["assessment_result_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_interview_questions_related_venture_id_fkey"
+            columns: ["related_venture_id"]
+            isOneToOne: false
+            referencedRelation: "ventures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_interview_responses: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          response_text: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          response_text: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          response_text?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_interview_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "ai_interview_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_interview_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_venture_analysis: {
+        Row: {
+          assessment_result_id: string
+          created_at: string
+          fit_narrative: string
+          id: string
+          onboarding_suggestions: string[]
+          role_recommendation: string
+          venture_id: string
+        }
+        Insert: {
+          assessment_result_id: string
+          created_at?: string
+          fit_narrative: string
+          id?: string
+          onboarding_suggestions?: string[]
+          role_recommendation: string
+          venture_id: string
+        }
+        Update: {
+          assessment_result_id?: string
+          created_at?: string
+          fit_narrative?: string
+          id?: string
+          onboarding_suggestions?: string[]
+          role_recommendation?: string
+          venture_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_venture_analysis_assessment_result_id_fkey"
+            columns: ["assessment_result_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_venture_analysis_venture_id_fkey"
+            columns: ["venture_id"]
+            isOneToOne: false
+            referencedRelation: "ventures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           admin_notes: string | null
@@ -220,6 +399,7 @@ export type Database = {
           created_at: string
           current_question: number
           id: string
+          interview_status: string
           sent_at: string
           started_at: string | null
           status: string
@@ -232,6 +412,7 @@ export type Database = {
           created_at?: string
           current_question?: number
           id?: string
+          interview_status?: string
           sent_at?: string
           started_at?: string | null
           status?: string
@@ -244,6 +425,7 @@ export type Database = {
           created_at?: string
           current_question?: number
           id?: string
+          interview_status?: string
           sent_at?: string
           started_at?: string | null
           status?: string
