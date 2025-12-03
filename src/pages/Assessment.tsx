@@ -246,14 +246,14 @@ export default function Assessment() {
       // Calculate results
       const results = calculateAssessmentResults(responsesWithData, application.name);
 
-      // Save results
+      // Save results - cast to any to handle Supabase Json type
       const { error: resultsError } = await supabase
         .from('assessment_results')
-        .insert([{
+        .insert({
           session_id: session.id,
-          dimension_scores: results.dimensionScores as unknown as Record<string, unknown>,
-          venture_fit_scores: results.ventureFitScores as unknown as Record<string, unknown>,
-          team_compatibility_scores: results.teamCompatibilityScores as unknown as Record<string, unknown>,
+          dimension_scores: results.dimensionScores as any,
+          venture_fit_scores: results.ventureFitScores as any,
+          team_compatibility_scores: results.teamCompatibilityScores as any,
           primary_founder_type: results.primaryFounderType,
           secondary_founder_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
@@ -261,7 +261,7 @@ export default function Assessment() {
           strengths: results.strengths,
           weaknesses: results.weaknesses,
           weakness_summary: results.weaknessSummary,
-        }]);
+        });
 
       if (resultsError) throw resultsError;
 

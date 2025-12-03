@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { AuthProvider, ProtectedRoute } from "@/hooks/useAuth";
@@ -25,6 +25,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Layout wrapper for pages with navigation
+const MainLayout = () => (
+  <>
+    <AnnouncementBanner />
+    <Navigation />
+    <Outlet />
+  </>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -38,60 +47,54 @@ const App = () => (
             <Route path="/assessment-thank-you" element={<AssessmentThankYou />} />
             
             {/* Main app routes with navigation */}
-            <Route path="/*" element={
-              <>
-                <AnnouncementBanner />
-                <Navigation />
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/role" element={<RolePage />} />
-                  <Route path="/industries" element={<IndustriesPage />} />
-                  <Route path="/ideal-candidate" element={<IdealPage />} />
-                  <Route path="/process" element={<ProcessPage />} />
-                  <Route path="/internships" element={<InternshipsPage />} />
-                  <Route path="/apply" element={<ApplyPage />} />
-                  
-                  {/* Admin routes */}
-                  <Route path="/admin" element={<AdminLogin />} />
-                  <Route 
-                    path="/admin/dashboard" 
-                    element={
-                      <ProtectedRoute>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/application/:id" 
-                    element={
-                      <ProtectedRoute>
-                        <ApplicationDetail />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/internships" 
-                    element={
-                      <ProtectedRoute>
-                        <ManageInternships />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/site-content" 
-                    element={
-                      <ProtectedRoute>
-                        <ManageSiteContent />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </>
-            } />
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/role" element={<RolePage />} />
+              <Route path="/industries" element={<IndustriesPage />} />
+              <Route path="/ideal-candidate" element={<IdealPage />} />
+              <Route path="/process" element={<ProcessPage />} />
+              <Route path="/internships" element={<InternshipsPage />} />
+              <Route path="/apply" element={<ApplyPage />} />
+              
+              {/* Admin routes */}
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route 
+                path="/admin/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/application/:id" 
+                element={
+                  <ProtectedRoute>
+                    <ApplicationDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/internships" 
+                element={
+                  <ProtectedRoute>
+                    <ManageInternships />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/site-content" 
+                element={
+                  <ProtectedRoute>
+                    <ManageSiteContent />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
