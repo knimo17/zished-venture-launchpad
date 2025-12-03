@@ -95,8 +95,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Created assessment session: ${session.id}`);
 
-    // Build assessment URL
-    const appUrl = Deno.env.get("APP_URL") || "https://fezjiutlszkrvdubfvnc.lovableproject.com";
+    // Build assessment URL (remove trailing slash if present)
+    const rawAppUrl = Deno.env.get("APP_URL") || "https://fezjiutlszkrvdubfvnc.lovableproject.com";
+    const appUrl = rawAppUrl.replace(/\/+$/, '');
     const assessmentUrl = `${appUrl}/assessment/${token}`;
 
     // Send email
