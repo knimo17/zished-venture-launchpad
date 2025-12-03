@@ -203,9 +203,12 @@ export default function Assessment() {
 
       // Auto-advance to next question after a brief delay
       setTimeout(() => {
-        if (currentQuestionIndex < shuffledQuestions.length - 1) {
-          setCurrentQuestionIndex((prev) => prev + 1);
-        }
+        setCurrentQuestionIndex((prev) => {
+          if (prev < shuffledQuestions.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
       }, 300);
 
     } catch (error: any) {
@@ -216,7 +219,7 @@ export default function Assessment() {
         variant: 'destructive',
       });
     }
-  }, [session, currentQuestionIndex, shuffledQuestions.length, toast]);
+  }, [session, shuffledQuestions.length, toast]);
 
   // Start the assessment
   const handleStart = async () => {
