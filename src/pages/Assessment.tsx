@@ -559,7 +559,6 @@ export default function Assessment() {
                     <span className="flex-1 font-normal">
                       {item.label}
                     </span>
-                    <span className="text-muted-foreground text-sm">{item.value}</span>
                   </Label>
                 ))}
               </RadioGroup>
