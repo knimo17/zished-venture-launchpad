@@ -147,16 +147,44 @@ export default function Assessment() {
 
         // If all questions answered, allow them to complete submission
         if (existingResponses && totalQuestions && existingResponses.length >= totalQuestions) {
-          // Load their responses into state so they can submit
+          // First load questions so we can properly convert forced-choice responses
+          const { data: questionsData } = await supabase
+            .from('assessment_questions')
+            .select('*')
+            .order('question_number', { ascending: true });
+          
+          let transformedQuestions: Question[] = [];
+          if (questionsData) {
+            transformedQuestions = questionsData.map((q) => ({
+              id: q.id,
+              question_number: q.question_number,
+              question_text: q.question_text,
+              dimension: q.dimension,
+              sub_dimension: q.sub_dimension,
+              is_reverse: q.is_reverse || false,
+              is_trap: q.is_trap || false,
+              question_type: (q.question_type as 'likert' | 'forced_choice' | 'scenario') || 'likert',
+              options: q.options ? (q.options as string[]) : null,
+              option_mappings: q.option_mappings ? (q.option_mappings as Record<string, Record<string, number>>) : null,
+            }));
+            setQuestions(transformedQuestions);
+          }
+          
+          // Load responses with proper forced-choice conversion (1/2 → 'A'/'B')
           const loadedResponses: Record<string, number | string> = {};
           existingResponses.forEach(r => {
-            loadedResponses[r.question_id] = r.response;
+            const question = transformedQuestions.find(q => q.id === r.question_id);
+            if (question?.question_type === 'forced_choice') {
+              // Convert numeric back to A/B for scoring
+              loadedResponses[r.question_id] = r.response === 1 ? 'A' : 'B';
+            } else {
+              loadedResponses[r.question_id] = r.response;
+            }
           });
           setResponses(loadedResponses);
           setSession(sessionData);
-          setPhase('ready_to_submit');
           
-          // Still need to load application and questions
+          // Load application data
           const { data: appData, error: appError } = await supabase
             .from('applications')
             .select('name')
@@ -174,26 +202,8 @@ export default function Assessment() {
             setApplication({ name: 'Applicant' });
           }
           
-          const { data: questionsData } = await supabase
-            .from('assessment_questions')
-            .select('*')
-            .order('question_number', { ascending: true });
-          
-          if (questionsData) {
-            const transformedQuestions: Question[] = questionsData.map((q) => ({
-              id: q.id,
-              question_number: q.question_number,
-              question_text: q.question_text,
-              dimension: q.dimension,
-              sub_dimension: q.sub_dimension,
-              is_reverse: q.is_reverse || false,
-              is_trap: q.is_trap || false,
-              question_type: (q.question_type as 'likert' | 'forced_choice' | 'scenario') || 'likert',
-              options: q.options ? (q.options as string[]) : null,
-              option_mappings: q.option_mappings ? (q.option_mappings as Record<string, Record<string, number>>) : null,
-            }));
-            setQuestions(transformedQuestions);
-          }
+          // Set phase AFTER all data is loaded
+          setPhase('ready_to_submit');
           setLoading(false);
           return;
         }
@@ -584,7 +594,8 @@ export default function Assessment() {
         variant: 'destructive',
       });
       setSubmitting(false);
-      setPhase('assessment');
+      // Stay in ready_to_submit so user can retry, not assessment phase
+      setPhase('ready_to_submit');
     }
   };
 
@@ -708,6 +719,9 @@ export default function Assessment() {
 
   // Ready to submit phase (for users returning with all responses already saved)
   if (phase === 'ready_to_submit') {
+    // Check if all data is loaded before allowing submission
+    const dataReady = session && application && questions.length > 0 && Object.keys(responses).length > 0;
+    
     return (
       <div className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-2xl mx-auto">
@@ -719,33 +733,42 @@ export default function Assessment() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-lg text-center">
-                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <h3 className="font-semibold text-lg mb-2">All Questions Answered</h3>
-                <p className="text-muted-foreground">
-                  You've answered all {questions.length} questions. Click below to submit your assessment.
-                </p>
-              </div>
+              {!dataReady ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 text-primary mx-auto animate-spin mb-4" />
+                  <p className="text-muted-foreground">Loading your assessment data...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-lg text-center">
+                    <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="font-semibold text-lg mb-2">All Questions Answered</h3>
+                    <p className="text-muted-foreground">
+                      You've answered all {questions.length} questions. Click below to submit your assessment.
+                    </p>
+                  </div>
 
-              <Button 
-                onClick={completeAssessment} 
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  completeAssessment();
-                }}
-                className="w-full min-h-[56px] touch-manipulation"
-                size="lg"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit My Assessment'
-                )}
-              </Button>
+                  <Button 
+                    onClick={completeAssessment} 
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      completeAssessment();
+                    }}
+                    className="w-full min-h-[56px] touch-manipulation"
+                    size="lg"
+                    disabled={submitting || !dataReady}
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit My Assessment'
+                    )}
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
