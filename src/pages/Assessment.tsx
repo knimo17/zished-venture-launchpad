@@ -64,7 +64,7 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
   return result;
 }
 
-type AssessmentPhase = 'welcome' | 'assessment' | 'submitting';
+type AssessmentPhase = 'welcome' | 'assessment' | 'submitting' | 'ready_to_submit';
 
 export default function Assessment() {
   const { token } = useParams();
@@ -134,13 +134,59 @@ export default function Assessment() {
         return;
       }
 
-      // If already started, check if they have responses - if so, they can't continue
+      // If already started, check response status
       if (sessionData.status === 'in_progress') {
         const { data: existingResponses } = await supabase
           .from('assessment_responses')
-          .select('id')
-          .eq('session_id', sessionData.id)
-          .limit(1);
+          .select('id, question_id, response')
+          .eq('session_id', sessionData.id);
+
+        const { count: totalQuestions } = await supabase
+          .from('assessment_questions')
+          .select('*', { count: 'exact', head: true });
+
+        // If all questions answered, allow them to complete submission
+        if (existingResponses && totalQuestions && existingResponses.length >= totalQuestions) {
+          // Load their responses into state so they can submit
+          const loadedResponses: Record<string, number | string> = {};
+          existingResponses.forEach(r => {
+            loadedResponses[r.question_id] = r.response;
+          });
+          setResponses(loadedResponses);
+          setSession(sessionData);
+          setPhase('ready_to_submit');
+          
+          // Still need to load application and questions
+          const { data: appData } = await supabase
+            .from('applications')
+            .select('name')
+            .eq('id', sessionData.application_id)
+            .single();
+          if (appData) setApplication(appData);
+          
+          const { data: questionsData } = await supabase
+            .from('assessment_questions')
+            .select('*')
+            .order('question_number', { ascending: true });
+          
+          if (questionsData) {
+            const transformedQuestions: Question[] = questionsData.map((q) => ({
+              id: q.id,
+              question_number: q.question_number,
+              question_text: q.question_text,
+              dimension: q.dimension,
+              sub_dimension: q.sub_dimension,
+              is_reverse: q.is_reverse || false,
+              is_trap: q.is_trap || false,
+              question_type: (q.question_type as 'likert' | 'forced_choice' | 'scenario') || 'likert',
+              options: q.options ? (q.options as string[]) : null,
+              option_mappings: q.option_mappings ? (q.option_mappings as Record<string, Record<string, number>>) : null,
+            }));
+            setQuestions(transformedQuestions);
+          }
+          setLoading(false);
+          return;
+        }
 
         if (existingResponses && existingResponses.length > 0) {
           toast({
@@ -632,6 +678,49 @@ export default function Assessment() {
                 </p>
               </div>
               <Progress value={66} className="w-64 mx-auto" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Ready to submit phase (for users returning with all responses already saved)
+  if (phase === 'ready_to_submit') {
+    return (
+      <div className="min-h-screen bg-background py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Complete Your Submission</CardTitle>
+              <CardDescription className="mt-2">
+                Welcome back, {application?.name || 'Applicant'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-green-500/10 border border-green-500/30 p-6 rounded-lg text-center">
+                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="font-semibold text-lg mb-2">All Questions Answered</h3>
+                <p className="text-muted-foreground">
+                  You've answered all {questions.length} questions. Click below to submit your assessment.
+                </p>
+              </div>
+
+              <Button 
+                onClick={completeAssessment} 
+                className="w-full" 
+                size="lg"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit My Assessment'
+                )}
+              </Button>
             </CardContent>
           </Card>
         </div>
