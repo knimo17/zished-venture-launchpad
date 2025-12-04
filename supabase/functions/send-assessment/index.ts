@@ -102,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email
     const emailResponse = await resend.emails.send({
-      from: "verigo54 <onboarding@resend.dev>",
+      from: "verigo54 <admin@verigo54.com>",
       to: [application.email],
       subject: "Complete Your Operator Assessment - verigo54",
       html: `
@@ -145,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
               <ul>
                 <li>70 questions designed to understand your operator profile</li>
                 <li>Takes approximately 15-20 minutes</li>
-                <li>Your progress is saved automatically - you can continue later if needed</li>
+                <li>Please complete the assessment in one sitting</li>
                 <li>There are no right or wrong answers - be honest and authentic</li>
               </ul>
               
