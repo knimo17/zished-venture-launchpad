@@ -157,12 +157,22 @@ export default function Assessment() {
           setPhase('ready_to_submit');
           
           // Still need to load application and questions
-          const { data: appData } = await supabase
+          const { data: appData, error: appError } = await supabase
             .from('applications')
             .select('name')
             .eq('id', sessionData.application_id)
-            .single();
-          if (appData) setApplication(appData);
+            .maybeSingle();
+          
+          if (appError) {
+            console.error('Error loading application:', appError);
+          }
+          
+          if (appData) {
+            setApplication(appData);
+          } else {
+            // Fallback - set a minimal application object so submission can proceed
+            setApplication({ name: 'Applicant' });
+          }
           
           const { data: questionsData } = await supabase
             .from('assessment_questions')
