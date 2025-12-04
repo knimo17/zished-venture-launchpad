@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
 import { calculateAllVentureMatches, VentureProfile, AssessmentData } from '@/lib/ventureMatching';
 import { CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { Json } from '@/integrations/supabase/types';
 
 interface Question {
   id: string;
@@ -18,6 +19,11 @@ interface Question {
   question_text: string;
   dimension: string;
   sub_dimension: string | null;
+  is_reverse: boolean;
+  is_trap: boolean;
+  question_type: 'likert' | 'forced_choice' | 'scenario';
+  options: string[] | null;
+  option_mappings: Record<string, Record<string, number>> | null;
 }
 
 interface Session {
@@ -58,7 +64,7 @@ function seededShuffle<T>(array: T[], seed: string): T[] {
   return result;
 }
 
-type AssessmentPhase = 'welcome' | 'likert' | 'submitting';
+type AssessmentPhase = 'welcome' | 'assessment' | 'submitting';
 
 export default function Assessment() {
   const { token } = useParams();
@@ -69,15 +75,26 @@ export default function Assessment() {
   const [session, setSession] = useState<Session | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [responses, setResponses] = useState<Record<string, number>>({});
+  const [responses, setResponses] = useState<Record<string, number | string>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<AssessmentPhase>('welcome');
 
   // Shuffle questions based on session ID for consistent ordering
+  // Only shuffle likert questions (Q1-60), keep forced choice and scenario in order
   const shuffledQuestions = useMemo(() => {
     if (!session || questions.length === 0) return [];
-    return seededShuffle(questions, session.id);
+    
+    // Separate by question type
+    const likertQuestions = questions.filter(q => q.question_type === 'likert');
+    const forcedChoiceQuestions = questions.filter(q => q.question_type === 'forced_choice');
+    const scenarioQuestions = questions.filter(q => q.question_type === 'scenario');
+    
+    // Shuffle only likert questions
+    const shuffledLikert = seededShuffle(likertQuestions, session.id);
+    
+    // Return in order: shuffled likert, then forced choice, then scenarios
+    return [...shuffledLikert, ...forcedChoiceQuestions, ...scenarioQuestions];
   }, [questions, session?.id]);
 
   // Use ref to track total questions for stable closure
@@ -137,7 +154,7 @@ export default function Assessment() {
 
       setSession(sessionData);
       if (sessionData.status === 'in_progress') {
-        setPhase('likert');
+        setPhase('assessment');
       }
 
       // Get application name
@@ -158,7 +175,22 @@ export default function Assessment() {
         .order('question_number', { ascending: true });
 
       if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      
+      // Transform the data to match our Question interface
+      const transformedQuestions: Question[] = (questionsData || []).map((q) => ({
+        id: q.id,
+        question_number: q.question_number,
+        question_text: q.question_text,
+        dimension: q.dimension,
+        sub_dimension: q.sub_dimension,
+        is_reverse: q.is_reverse || false,
+        is_trap: q.is_trap || false,
+        question_type: (q.question_type as 'likert' | 'forced_choice' | 'scenario') || 'likert',
+        options: q.options ? (q.options as string[]) : null,
+        option_mappings: q.option_mappings ? (q.option_mappings as Record<string, Record<string, number>>) : null,
+      }));
+      
+      setQuestions(transformedQuestions);
 
     } catch (error: any) {
       console.error('Error loading assessment:', error);
@@ -173,23 +205,29 @@ export default function Assessment() {
   };
 
   // Save a single response and auto-advance
-  const saveResponseAndAdvance = useCallback(async (questionId: string, value: number) => {
+  const saveResponseAndAdvance = useCallback(async (questionId: string, value: number | string) => {
     if (!session) return;
 
     try {
+      // For the database, we store numeric values
+      // For forced choice, convert A/B to 0/1
+      const dbValue = typeof value === 'string' 
+        ? (value === 'A' ? 0 : 1) 
+        : value;
+
       const { error } = await supabase
         .from('assessment_responses')
         .upsert({
           session_id: session.id,
           question_id: questionId,
-          response: value,
+          response: dbValue,
         }, {
           onConflict: 'session_id,question_id',
         });
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state with original value (A/B or number)
       setResponses((prev) => ({ ...prev, [questionId]: value }));
 
       // Auto-advance to next question after a brief delay using ref for stable value
@@ -227,7 +265,7 @@ export default function Assessment() {
         .eq('id', session.id);
 
       setSession({ ...session, status: 'in_progress' });
-      setPhase('likert');
+      setPhase('assessment');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -238,7 +276,7 @@ export default function Assessment() {
   };
 
   // Handle response selection
-  const handleResponseChange = (questionId: string, value: number) => {
+  const handleResponseChange = (questionId: string, value: number | string) => {
     saveResponseAndAdvance(questionId, value);
   };
 
@@ -261,25 +299,37 @@ export default function Assessment() {
 
     try {
       // Prepare responses with question data for scoring (use original question order for scoring)
-      const responsesWithData: AssessmentResponse[] = questions.map((q) => ({
-        question_id: q.id,
-        question_number: q.question_number,
-        response: responses[q.id] || 0,
-        dimension: q.dimension,
-        sub_dimension: q.sub_dimension || undefined,
-      }));
+      const responsesWithData: AssessmentResponse[] = questions.map((q) => {
+        const responseValue = responses[q.id];
+        return {
+          question_id: q.id,
+          question_number: q.question_number,
+          response: responseValue ?? 0,
+          dimension: q.dimension,
+          sub_dimension: q.sub_dimension || undefined,
+          is_reverse: q.is_reverse,
+          is_trap: q.is_trap,
+          question_type: q.question_type,
+          option_mappings: q.option_mappings || undefined,
+        };
+      });
 
       // Calculate results
       const results = calculateAssessmentResults(responsesWithData, application.name);
+
+      // Prepare data for database (excluding new fields that aren't in schema)
+      const dbDimensionScores = results.dimensionScores;
+      const dbVentureFitScores = results.ventureFitScores;
+      const dbTeamCompatibilityScores = results.teamCompatibilityScores;
 
       // Save results
       const { data: resultData, error: resultsError } = await supabase
         .from('assessment_results')
         .insert({
           session_id: session.id,
-          dimension_scores: results.dimensionScores as any,
-          venture_fit_scores: results.ventureFitScores as any,
-          team_compatibility_scores: results.teamCompatibilityScores as any,
+          dimension_scores: dbDimensionScores as unknown as Json,
+          venture_fit_scores: dbVentureFitScores as unknown as Json,
+          team_compatibility_scores: dbTeamCompatibilityScores as unknown as Json,
           primary_operator_type: results.primaryFounderType,
           secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
@@ -354,6 +404,7 @@ export default function Assessment() {
           secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
           venture_matches: ventureMatchesForAI,
+          trap_analysis: results.trapAnalysis,
         },
       }).catch((err) => console.error('AI interview questions error:', err));
 
@@ -369,6 +420,8 @@ export default function Assessment() {
           secondary_operator_type: results.secondaryFounderType,
           confidence_level: results.confidenceLevel,
           venture_matches: ventureMatchesForAI,
+          trap_analysis: results.trapAnalysis,
+          style_traits: results.styleTraits,
         },
       }).catch((err) => console.error('AI evaluation error:', err));
 
@@ -393,7 +446,7 @@ export default function Assessment() {
         variant: 'destructive',
       });
       setSubmitting(false);
-      setPhase('likert');
+      setPhase('assessment');
     }
   };
 
@@ -412,8 +465,16 @@ export default function Assessment() {
   const currentQ = shuffledQuestions[currentQuestionIndex];
   const answeredCount = Object.keys(responses).length;
   const progress = (answeredCount / shuffledQuestions.length) * 100;
-  const isLastLikertQuestion = currentQuestionIndex === shuffledQuestions.length - 1;
-  const allLikertAnswered = answeredCount === shuffledQuestions.length;
+  const isLastQuestion = currentQuestionIndex === shuffledQuestions.length - 1;
+  const allAnswered = answeredCount === shuffledQuestions.length;
+
+  // Get current section label
+  const getSectionLabel = () => {
+    if (!currentQ) return 'Profile Assessment';
+    if (currentQ.question_type === 'forced_choice') return 'Style Preferences';
+    if (currentQ.question_type === 'scenario') return 'Situational Assessment';
+    return 'Profile Assessment';
+  };
 
   // Welcome screen
   if (phase === 'welcome') {
@@ -507,14 +568,103 @@ export default function Assessment() {
     );
   }
 
-  // Likert questions phase
+  // Render Likert question
+  const renderLikertQuestion = () => (
+    <RadioGroup
+      value={responses[currentQ.id]?.toString() || ''}
+      onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
+      className="space-y-3"
+    >
+      {likertLabels.map((item) => (
+        <Label
+          key={item.value}
+          htmlFor={`option-${item.value}`}
+          className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+            responses[currentQ.id] === item.value
+              ? 'border-primary bg-primary/5'
+              : 'border-border hover:bg-muted/50'
+          }`}
+        >
+          <RadioGroupItem value={item.value.toString()} id={`option-${item.value}`} />
+          <span className="flex-1 font-normal">
+            {item.label}
+          </span>
+        </Label>
+      ))}
+    </RadioGroup>
+  );
+
+  // Render Forced Choice question
+  const renderForcedChoiceQuestion = () => {
+    if (!currentQ.options || currentQ.options.length < 2) return null;
+    
+    return (
+      <RadioGroup
+        value={responses[currentQ.id]?.toString() || ''}
+        onValueChange={(value) => handleResponseChange(currentQ.id, value)}
+        className="space-y-4"
+      >
+        {['A', 'B'].map((choice, idx) => (
+          <Label
+            key={choice}
+            htmlFor={`choice-${choice}`}
+            className={`flex items-start space-x-3 p-5 rounded-lg border-2 transition-all cursor-pointer ${
+              responses[currentQ.id] === choice
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-border hover:bg-muted/50 hover:border-muted-foreground/30'
+            }`}
+          >
+            <RadioGroupItem value={choice} id={`choice-${choice}`} className="mt-1" />
+            <div className="flex-1">
+              <span className="font-medium text-sm text-muted-foreground mb-1 block">Option {choice}</span>
+              <span className="text-base">
+                {currentQ.options[idx]}
+              </span>
+            </div>
+          </Label>
+        ))}
+      </RadioGroup>
+    );
+  };
+
+  // Render Scenario question
+  const renderScenarioQuestion = () => {
+    if (!currentQ.options) return null;
+    
+    return (
+      <RadioGroup
+        value={responses[currentQ.id]?.toString() || ''}
+        onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
+        className="space-y-3"
+      >
+        {currentQ.options.map((option, idx) => (
+          <Label
+            key={idx}
+            htmlFor={`scenario-${idx}`}
+            className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+              responses[currentQ.id] === idx
+                ? 'border-primary bg-primary/5'
+                : 'border-border hover:bg-muted/50'
+            }`}
+          >
+            <RadioGroupItem value={idx.toString()} id={`scenario-${idx}`} />
+            <span className="flex-1 font-normal">
+              {option}
+            </span>
+          </Label>
+        ))}
+      </RadioGroup>
+    );
+  };
+
+  // Assessment phase
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Phase indicator */}
         <div className="mb-6 text-center">
           <Badge variant="outline" className="mb-2">
-            Profile Assessment
+            {getSectionLabel()}
           </Badge>
         </div>
 
@@ -540,34 +690,15 @@ export default function Assessment() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup
-                value={responses[currentQ.id]?.toString() || ''}
-                onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
-                className="space-y-3"
-              >
-                {likertLabels.map((item) => (
-                  <Label
-                    key={item.value}
-                    htmlFor={`option-${item.value}`}
-                    className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
-                      responses[currentQ.id] === item.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    <RadioGroupItem value={item.value.toString()} id={`option-${item.value}`} />
-                    <span className="flex-1 font-normal">
-                      {item.label}
-                    </span>
-                  </Label>
-                ))}
-              </RadioGroup>
+              {currentQ.question_type === 'likert' && renderLikertQuestion()}
+              {currentQ.question_type === 'forced_choice' && renderForcedChoiceQuestion()}
+              {currentQ.question_type === 'scenario' && renderScenarioQuestion()}
             </CardContent>
           </Card>
         )}
 
         {/* Submit button - shows when all questions answered */}
-        {allLikertAnswered && (
+        {allAnswered && (
           <div className="flex justify-center">
             <Button
               onClick={completeAssessment}
@@ -588,9 +719,9 @@ export default function Assessment() {
         )}
 
         {/* Remaining questions hint */}
-        {!allLikertAnswered && (
+        {!allAnswered && (
           <p className="text-center text-sm text-muted-foreground">
-            {isLastLikertQuestion 
+            {isLastQuestion 
               ? 'Please answer this question to submit.'
               : `${shuffledQuestions.length - answeredCount} questions remaining`}
           </p>
