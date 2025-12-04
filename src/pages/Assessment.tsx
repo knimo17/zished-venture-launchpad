@@ -349,13 +349,24 @@ export default function Assessment() {
 
   // Complete assessment and process results
   const completeAssessment = async () => {
-    if (!session || !application) return;
+    if (!session || !application) {
+      console.log('Missing session or application:', { session: !!session, application: !!application });
+      toast({
+        title: 'Error',
+        description: 'Session data not loaded. Please refresh and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    // For ready_to_submit phase, use questions directly since shuffledQuestions may not be populated
+    const questionList = phase === 'ready_to_submit' ? questions : shuffledQuestions;
+    
     const answeredCount = Object.keys(responses).length;
-    if (answeredCount < shuffledQuestions.length) {
+    if (answeredCount < questionList.length) {
       toast({
         title: 'Incomplete Assessment',
-        description: `Please answer all questions. ${shuffledQuestions.length - answeredCount} remaining.`,
+        description: `Please answer all questions. ${questionList.length - answeredCount} remaining.`,
         variant: 'destructive',
       });
       return;
@@ -376,7 +387,7 @@ export default function Assessment() {
         description: 'Failed to verify responses. Please try again.',
         variant: 'destructive',
       });
-      setPhase('assessment');
+      setPhase('ready_to_submit');
       setSubmitting(false);
       return;
     }
@@ -408,7 +419,7 @@ export default function Assessment() {
           description: 'Some responses could not be saved. Please check your connection and try again.',
           variant: 'destructive',
         });
-        setPhase('assessment');
+        setPhase('ready_to_submit');
         setSubmitting(false);
         return;
       }
@@ -708,7 +719,11 @@ export default function Assessment() {
 
               <Button 
                 onClick={completeAssessment} 
-                className="w-full" 
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  completeAssessment();
+                }}
+                className="w-full min-h-[56px] touch-manipulation"
                 size="lg"
                 disabled={submitting}
               >
