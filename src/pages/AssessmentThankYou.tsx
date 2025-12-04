@@ -15,7 +15,7 @@ export default function AssessmentThankYou() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            Your Founder Assessment has been submitted successfully.
+            Your Operator Assessment has been submitted successfully.
           </p>
           <p className="text-muted-foreground">
             Our team will review your results and be in touch with next steps.

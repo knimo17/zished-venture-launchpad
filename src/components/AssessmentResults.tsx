@@ -72,7 +72,7 @@ export function AssessmentResults({
 
   return (
     <div className="space-y-6">
-      {/* Founder Type Header */}
+      {/* Operator Type Header */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-3">

@@ -599,7 +599,7 @@ export default function ApplicationDetail() {
         <Card className="mb-6 print:hidden">
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Founder Assessment</CardTitle>
+              <CardTitle className="text-lg">Operator Assessment</CardTitle>
               {getAssessmentStatusBadge()}
             </div>
           </CardHeader>
@@ -607,7 +607,7 @@ export default function ApplicationDetail() {
             {!assessmentSession ? (
               <div className="flex items-center justify-between">
                 <p className="text-muted-foreground">
-                  Send a 70-question assessment to evaluate this applicant's founder profile.
+                  Send a 70-question assessment to evaluate this applicant's operator profile.
                 </p>
                 <Button onClick={sendAssessment} disabled={sendingAssessment}>
                   <Send className="mr-2 h-4 w-4" />
