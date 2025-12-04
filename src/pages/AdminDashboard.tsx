@@ -137,6 +137,7 @@ export default function AdminDashboard() {
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
+            <TableBody>
               {applications.map((app) => (
                 <TableRow key={app.id}>
                   <TableCell>
@@ -173,6 +174,7 @@ export default function AdminDashboard() {
                   </TableCell>
                 </TableRow>
               ))}
+            </TableBody>
           </Table>
         </div>
       </div>

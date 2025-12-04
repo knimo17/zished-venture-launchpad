@@ -144,6 +144,7 @@ export default function ApplicationDetail() {
   }, [id]);
 
   const fetchApplication = async () => {
+    console.log('Fetching application with id:', id);
     try {
       const { data, error } = await supabase
         .from('applications')
@@ -157,10 +158,13 @@ export default function ApplicationDetail() {
         .eq('id', id)
         .single();
 
+      console.log('Application fetch result:', { data, error });
+      
       if (error) throw error;
       setApplication(data);
       setNotes(data.admin_notes || '');
     } catch (error: any) {
+      console.error('Error fetching application:', error);
       toast({
         title: 'Error',
         description: error.message,
