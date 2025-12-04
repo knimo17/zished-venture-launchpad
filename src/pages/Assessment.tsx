@@ -566,8 +566,8 @@ export default function Assessment() {
           </Card>
         )}
 
-        {/* Submit button (only shows on last question when all answered) */}
-        {isLastLikertQuestion && allLikertAnswered && (
+        {/* Submit button - shows when all questions answered */}
+        {allLikertAnswered && (
           <div className="flex justify-center">
             <Button
               onClick={completeAssessment}
@@ -588,9 +588,11 @@ export default function Assessment() {
         )}
 
         {/* Remaining questions hint */}
-        {isLastLikertQuestion && !allLikertAnswered && (
+        {!allLikertAnswered && (
           <p className="text-center text-sm text-muted-foreground">
-            Please answer this question to continue.
+            {isLastLikertQuestion 
+              ? 'Please answer this question to submit.'
+              : `${shuffledQuestions.length - answeredCount} questions remaining`}
           </p>
         )}
       </div>
