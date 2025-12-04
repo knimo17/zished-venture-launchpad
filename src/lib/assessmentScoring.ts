@@ -1,11 +1,15 @@
-// Assessment Scoring Utility - Implements all scoring logic and templates
+// Assessment Scoring Utility - Implements all scoring logic including reverse scoring, trap detection, and behavioral adjustments
 
 export interface AssessmentResponse {
   question_id: string;
   question_number: number;
-  response: number;
+  response: number | string; // number for likert/scenario, string 'A'/'B' for forced choice
   dimension: string;
   sub_dimension?: string;
+  is_reverse?: boolean;
+  is_trap?: boolean;
+  question_type?: 'likert' | 'forced_choice' | 'scenario';
+  option_mappings?: Record<string, Record<string, number>>;
 }
 
 export interface DimensionScores {
@@ -31,6 +35,23 @@ export interface TeamCompatibilityScores {
   collaboration: number;
 }
 
+export interface StyleTraits {
+  action_bias: number;
+  deliberation_bias: number;
+  autonomy: number;
+  collaboration: number;
+  direct: number;
+  diplomatic: number;
+  vision_focus: number;
+  execution_focus: number;
+}
+
+export interface TrapAnalysis {
+  trapScore: number; // 4-20 range
+  level: 'normal' | 'elevated' | 'likely_exaggeration';
+  shouldFlag: boolean;
+}
+
 export type OperatorType = 'Operational Leader' | 'Product Architect' | 'Growth Catalyst' | 'Visionary Builder';
 export type ConfidenceLevel = 'Strong' | 'Moderate' | 'Emerging';
 
@@ -38,6 +59,8 @@ export interface AssessmentResult {
   dimensionScores: DimensionScores;
   ventureFitScores: VentureFitScores;
   teamCompatibilityScores: TeamCompatibilityScores;
+  styleTraits: StyleTraits;
+  trapAnalysis: TrapAnalysis;
   primaryFounderType: OperatorType;
   secondaryFounderType: OperatorType | null;
   confidenceLevel: ConfidenceLevel;
@@ -47,7 +70,36 @@ export interface AssessmentResult {
   weaknessSummary: string;
 }
 
-// Calculate core dimension scores (sum of responses for each dimension)
+// Apply reverse scoring: reverse_score = 6 - response
+function applyReverseScoring(response: number, isReverse: boolean): number {
+  return isReverse ? 6 - response : response;
+}
+
+// Calculate trap score (Q37-40) - higher score indicates potential exaggeration
+export function calculateTrapAnalysis(responses: AssessmentResponse[]): TrapAnalysis {
+  const trapResponses = responses.filter(r => r.is_trap && typeof r.response === 'number');
+  
+  if (trapResponses.length === 0) {
+    return { trapScore: 0, level: 'normal', shouldFlag: false };
+  }
+
+  const trapScore = trapResponses.reduce((sum, r) => sum + (r.response as number), 0);
+  
+  let level: TrapAnalysis['level'] = 'normal';
+  let shouldFlag = false;
+
+  if (trapScore >= 16) {
+    level = 'likely_exaggeration';
+    shouldFlag = true;
+  } else if (trapScore >= 11) {
+    level = 'elevated';
+    shouldFlag = true;
+  }
+
+  return { trapScore, level, shouldFlag };
+}
+
+// Calculate core dimension scores with reverse scoring (Q1-36)
 export function calculateDimensionScores(responses: AssessmentResponse[]): DimensionScores {
   const scores: DimensionScores = {
     ownership: 0,
@@ -57,24 +109,136 @@ export function calculateDimensionScores(responses: AssessmentResponse[]): Dimen
     leadership: 0,
   };
 
+  let ownershipCount = 0, executionCount = 0, hustleCount = 0, problemSolvingCount = 0, leadershipCount = 0;
+
   responses.forEach((r) => {
-    if (r.question_number >= 1 && r.question_number <= 10) {
-      scores.ownership += r.response;
-    } else if (r.question_number >= 11 && r.question_number <= 20) {
-      scores.execution += r.response;
-    } else if (r.question_number >= 21 && r.question_number <= 30) {
-      scores.hustle += r.response;
-    } else if (r.question_number >= 31 && r.question_number <= 40) {
-      scores.problemSolving += r.response;
-    } else if (r.question_number >= 41 && r.question_number <= 50) {
-      scores.leadership += r.response;
+    if (r.is_trap || r.question_type !== 'likert' || typeof r.response !== 'number') return;
+    
+    const adjustedScore = applyReverseScoring(r.response, r.is_reverse || false);
+    
+    // Q1-8: Ownership
+    if (r.question_number >= 1 && r.question_number <= 8) {
+      scores.ownership += adjustedScore;
+      ownershipCount++;
+    }
+    // Q9-16: Execution
+    else if (r.question_number >= 9 && r.question_number <= 16) {
+      scores.execution += adjustedScore;
+      executionCount++;
+    }
+    // Q17-24: Hustle
+    else if (r.question_number >= 17 && r.question_number <= 24) {
+      scores.hustle += adjustedScore;
+      hustleCount++;
+    }
+    // Q25-30: Problem-Solving
+    else if (r.question_number >= 25 && r.question_number <= 30) {
+      scores.problemSolving += adjustedScore;
+      problemSolvingCount++;
+    }
+    // Q31-36: Leadership
+    else if (r.question_number >= 31 && r.question_number <= 36) {
+      scores.leadership += adjustedScore;
+      leadershipCount++;
+    }
+    // Q41-50: Mixed construct - contributes to multiple dimensions
+    else if (r.question_number >= 41 && r.question_number <= 50) {
+      // Mixed construct questions contribute based on their content
+      // Q41: focus (reverse) -> execution
+      // Q42: process creation -> execution, hustle
+      // Q43: calm under pressure -> leadership, problem_solving
+      // Q44: avoid leadership (reverse) -> leadership
+      // Q45: initiative -> ownership, hustle
+      // Q46: clarity preference (reverse) -> execution
+      // Q47: multitasking -> execution
+      // Q48: comfort over action (reverse) -> hustle
+      // Q49: fast decisions -> execution
+      // Q50: consistency struggle (reverse) -> execution
+      
+      switch (r.question_number) {
+        case 41:
+          scores.execution += adjustedScore * 0.5;
+          break;
+        case 42:
+          scores.execution += adjustedScore * 0.5;
+          scores.hustle += adjustedScore * 0.25;
+          break;
+        case 43:
+          scores.leadership += adjustedScore * 0.5;
+          scores.problemSolving += adjustedScore * 0.25;
+          break;
+        case 44:
+          scores.leadership += adjustedScore * 0.5;
+          break;
+        case 45:
+          scores.ownership += adjustedScore * 0.5;
+          scores.hustle += adjustedScore * 0.25;
+          break;
+        case 46:
+          scores.execution += adjustedScore * 0.5;
+          break;
+        case 47:
+          scores.execution += adjustedScore * 0.5;
+          break;
+        case 48:
+          scores.hustle += adjustedScore * 0.5;
+          break;
+        case 49:
+          scores.execution += adjustedScore * 0.5;
+          break;
+        case 50:
+          scores.execution += adjustedScore * 0.5;
+          break;
+      }
     }
   });
 
   return scores;
 }
 
-// Calculate venture fit scores (averaged to 1-5 scale)
+// Apply scenario adjustments to dimension scores
+export function applyScenarioAdjustments(
+  dimensionScores: DimensionScores,
+  responses: AssessmentResponse[]
+): DimensionScores {
+  const adjustedScores = { ...dimensionScores };
+  
+  responses.forEach((r) => {
+    if (r.question_type !== 'scenario' || typeof r.response !== 'number') return;
+    
+    const mappings = r.option_mappings;
+    if (!mappings) return;
+    
+    const selectedMapping = mappings[r.response.toString()];
+    if (!selectedMapping) return;
+    
+    // Apply small adjustments (±0.5 per trait)
+    Object.entries(selectedMapping).forEach(([trait, value]) => {
+      const adjustment = value * 0.5;
+      switch (trait) {
+        case 'ownership':
+          adjustedScores.ownership += adjustment;
+          break;
+        case 'execution':
+          adjustedScores.execution += adjustment;
+          break;
+        case 'hustle':
+          adjustedScores.hustle += adjustment;
+          break;
+        case 'problem_solving':
+          adjustedScores.problemSolving += adjustment;
+          break;
+        case 'leadership':
+          adjustedScores.leadership += adjustment;
+          break;
+      }
+    });
+  });
+  
+  return adjustedScores;
+}
+
+// Calculate venture fit scores (Q51-60)
 export function calculateVentureFitScores(responses: AssessmentResponse[]): VentureFitScores {
   let operatorRaw = 0;
   let productRaw = 0;
@@ -82,6 +246,8 @@ export function calculateVentureFitScores(responses: AssessmentResponse[]): Vent
   let visionRaw = 0;
 
   responses.forEach((r) => {
+    if (r.question_type !== 'likert' || typeof r.response !== 'number') return;
+    
     if (r.question_number >= 51 && r.question_number <= 53) {
       operatorRaw += r.response;
     } else if (r.question_number >= 54 && r.question_number <= 56) {
@@ -101,17 +267,60 @@ export function calculateVentureFitScores(responses: AssessmentResponse[]): Vent
   };
 }
 
-// Calculate team compatibility scores
-export function calculateTeamCompatibilityScores(responses: AssessmentResponse[]): TeamCompatibilityScores {
-  const subDimensionMap: Record<string, number[]> = {
-    workingStyle: [61, 62, 63],
-    communication: [64, 65],
-    conflictResponse: [66, 67],
-    decisionMaking: [68, 69],
-    collaboration: [70],
+// Calculate style traits from forced choice questions (Q61-65)
+export function calculateStyleTraits(responses: AssessmentResponse[]): StyleTraits {
+  const traits: StyleTraits = {
+    action_bias: 0,
+    deliberation_bias: 0,
+    autonomy: 0,
+    collaboration: 0,
+    direct: 0,
+    diplomatic: 0,
+    vision_focus: 0,
+    execution_focus: 0,
   };
 
-  const scores: TeamCompatibilityScores = {
+  responses.forEach((r) => {
+    if (r.question_type !== 'forced_choice' || typeof r.response !== 'string') return;
+    
+    const mappings = r.option_mappings;
+    if (!mappings) return;
+    
+    const selectedMapping = mappings[r.response];
+    if (!selectedMapping) return;
+    
+    Object.entries(selectedMapping).forEach(([trait, value]) => {
+      if (trait in traits) {
+        traits[trait as keyof StyleTraits] += value;
+      }
+    });
+  });
+
+  return traits;
+}
+
+// Calculate team compatibility scores from forced choice and scenario responses
+export function calculateTeamCompatibilityScores(
+  styleTraits: StyleTraits,
+  responses: AssessmentResponse[]
+): TeamCompatibilityScores {
+  // Map style traits to team compatibility dimensions
+  const workingStyle = (styleTraits.autonomy + styleTraits.collaboration) > 0 
+    ? ((styleTraits.autonomy > styleTraits.collaboration) ? 4 : 3.5) : 3;
+  
+  const communication = (styleTraits.direct + styleTraits.diplomatic) > 0
+    ? ((styleTraits.direct > styleTraits.diplomatic) ? 4 : 3.5) : 3;
+  
+  const conflictResponse = (styleTraits.direct + styleTraits.diplomatic) > 0
+    ? ((styleTraits.diplomatic > styleTraits.direct) ? 4 : 3.5) : 3;
+  
+  const decisionMaking = (styleTraits.action_bias + styleTraits.deliberation_bias) > 0
+    ? ((styleTraits.action_bias > styleTraits.deliberation_bias) ? 4 : 3.5) : 3;
+  
+  const collaboration = styleTraits.collaboration > 0 ? 4 : 3;
+
+  // Apply scenario adjustments
+  let scenarioAdjustments = {
     workingStyle: 0,
     communication: 0,
     conflictResponse: 0,
@@ -119,18 +328,52 @@ export function calculateTeamCompatibilityScores(responses: AssessmentResponse[]
     collaboration: 0,
   };
 
-  Object.entries(subDimensionMap).forEach(([key, questionNumbers]) => {
-    let sum = 0;
-    questionNumbers.forEach((qNum) => {
-      const response = responses.find((r) => r.question_number === qNum);
-      if (response) {
-        sum += response.response;
-      }
-    });
-    scores[key as keyof TeamCompatibilityScores] = sum / questionNumbers.length;
+  responses.forEach((r) => {
+    if (r.question_type !== 'scenario' || typeof r.response !== 'number') return;
+    
+    const mappings = r.option_mappings;
+    if (!mappings) return;
+    
+    const selectedMapping = mappings[r.response.toString()];
+    if (!selectedMapping) return;
+    
+    if (selectedMapping.communication) scenarioAdjustments.communication += 0.2;
+    if (selectedMapping.collaboration) scenarioAdjustments.collaboration += 0.2;
   });
 
-  return scores;
+  return {
+    workingStyle: Math.min(5, workingStyle + scenarioAdjustments.workingStyle),
+    communication: Math.min(5, communication + scenarioAdjustments.communication),
+    conflictResponse: Math.min(5, conflictResponse + scenarioAdjustments.conflictResponse),
+    decisionMaking: Math.min(5, decisionMaking + scenarioAdjustments.decisionMaking),
+    collaboration: Math.min(5, collaboration + scenarioAdjustments.collaboration),
+  };
+}
+
+// Cross-validate venture fit with core traits
+function validateVentureFitConsistency(
+  ventureFitScores: VentureFitScores,
+  dimensionScores: DimensionScores
+): VentureFitScores {
+  const adjusted = { ...ventureFitScores };
+  
+  // Normalize dimension scores to 1-5 scale for comparison
+  // Core traits have 8 questions * 5 max = 40, so we normalize
+  const normalizedHustle = (dimensionScores.hustle / 40) * 5;
+  const normalizedLeadership = (dimensionScores.leadership / 30) * 5;
+  
+  // If Growth is high but Hustle and Leadership are low, downgrade Growth confidence
+  if (adjusted.growth >= 4 && normalizedHustle < 3 && normalizedLeadership < 3) {
+    adjusted.growth = adjusted.growth * 0.85; // 15% reduction
+  }
+  
+  // If Operator is high but Execution is low, slight downgrade
+  const normalizedExecution = (dimensionScores.execution / 40) * 5;
+  if (adjusted.operator >= 4 && normalizedExecution < 3) {
+    adjusted.operator = adjusted.operator * 0.9;
+  }
+  
+  return adjusted;
 }
 
 // Determine primary operator type
@@ -173,7 +416,17 @@ export function determineSecondaryFounderType(
 }
 
 // Get confidence level based on primary type's average score
-export function getConfidenceLevel(score: number): ConfidenceLevel {
+export function getConfidenceLevel(score: number, trapAnalysis: TrapAnalysis): ConfidenceLevel {
+  // Downgrade confidence if trap score is elevated
+  if (trapAnalysis.level === 'likely_exaggeration') {
+    return 'Emerging';
+  }
+  
+  if (trapAnalysis.level === 'elevated') {
+    if (score >= 4.0) return 'Moderate';
+    return 'Emerging';
+  }
+  
   if (score >= 4.0) return 'Strong';
   if (score >= 3.4) return 'Moderate';
   return 'Emerging';
@@ -195,7 +448,8 @@ export function generateSummary(
   name: string,
   operatorType: OperatorType,
   confidence: ConfidenceLevel,
-  secondaryType: OperatorType | null
+  secondaryType: OperatorType | null,
+  trapAnalysis: TrapAnalysis
 ): string {
   const readiness = confidence === 'Strong' ? 'Exceptional' : confidence;
 
@@ -229,12 +483,21 @@ export function generateSummary(
     },
   } as Record<OperatorType, Record<OperatorType, string>>;
 
+  let summary = '';
+  
   if (secondaryType) {
     const secondaryFocus = hybridAdditions[operatorType][secondaryType];
-    return `${name} shows a ${readiness} operator profile as an ${operatorType} with ${secondaryType} tendencies. They combine their primary strengths with secondary capabilities in ${secondaryFocus}, making them especially valuable in ventures that need both stable core execution and ${secondaryFocus}-style contribution.`;
+    summary = `${name} shows a ${readiness} operator profile as an ${operatorType} with ${secondaryType} tendencies. They combine their primary strengths with secondary capabilities in ${secondaryFocus}, making them especially valuable in ventures that need both stable core execution and ${secondaryFocus}-style contribution.`;
+  } else {
+    summary = baseSummaries[operatorType];
   }
 
-  return baseSummaries[operatorType];
+  // Add trap warning for admin visibility
+  if (trapAnalysis.shouldFlag) {
+    summary += ` [Note: High social desirability score detected (${trapAnalysis.trapScore}/20) - results may be inflated.]`;
+  }
+
+  return summary;
 }
 
 // Get strengths for operator type
@@ -340,17 +603,34 @@ export function calculateAssessmentResults(
   responses: AssessmentResponse[],
   applicantName: string
 ): AssessmentResult {
-  const dimensionScores = calculateDimensionScores(responses);
-  const ventureFitScores = calculateVentureFitScores(responses);
-  const teamCompatibilityScores = calculateTeamCompatibilityScores(responses);
+  // Calculate trap analysis first
+  const trapAnalysis = calculateTrapAnalysis(responses);
+  
+  // Calculate base dimension scores with reverse scoring
+  let dimensionScores = calculateDimensionScores(responses);
+  
+  // Apply scenario adjustments to dimension scores
+  dimensionScores = applyScenarioAdjustments(dimensionScores, responses);
+  
+  // Calculate venture fit scores
+  let ventureFitScores = calculateVentureFitScores(responses);
+  
+  // Cross-validate venture fit with core traits
+  ventureFitScores = validateVentureFitConsistency(ventureFitScores, dimensionScores);
+  
+  // Calculate style traits from forced choice
+  const styleTraits = calculateStyleTraits(responses);
+  
+  // Calculate team compatibility from style traits and scenarios
+  const teamCompatibilityScores = calculateTeamCompatibilityScores(styleTraits, responses);
 
   const primaryFounderType = determinePrimaryFounderType(ventureFitScores);
   const secondaryFounderType = determineSecondaryFounderType(ventureFitScores, primaryFounderType);
   
   const primaryScore = getOperatorTypeScore(primaryFounderType, ventureFitScores);
-  const confidenceLevel = getConfidenceLevel(primaryScore);
+  const confidenceLevel = getConfidenceLevel(primaryScore, trapAnalysis);
 
-  const summary = generateSummary(applicantName, primaryFounderType, confidenceLevel, secondaryFounderType);
+  const summary = generateSummary(applicantName, primaryFounderType, confidenceLevel, secondaryFounderType, trapAnalysis);
   const strengths = getStrengths(primaryFounderType);
   const weaknesses = getWeaknesses(primaryFounderType);
   const weaknessSummary = generateWeaknessSummary(applicantName, primaryFounderType, secondaryFounderType);
@@ -359,6 +639,8 @@ export function calculateAssessmentResults(
     dimensionScores,
     ventureFitScores,
     teamCompatibilityScores,
+    styleTraits,
+    trapAnalysis,
     primaryFounderType,
     secondaryFounderType,
     confidenceLevel,

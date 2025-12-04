@@ -272,24 +272,39 @@ export type Database = {
           created_at: string
           dimension: string
           id: string
+          is_reverse: boolean
+          is_trap: boolean
+          option_mappings: Json | null
+          options: Json | null
           question_number: number
           question_text: string
+          question_type: string
           sub_dimension: string | null
         }
         Insert: {
           created_at?: string
           dimension: string
           id?: string
+          is_reverse?: boolean
+          is_trap?: boolean
+          option_mappings?: Json | null
+          options?: Json | null
           question_number: number
           question_text: string
+          question_type?: string
           sub_dimension?: string | null
         }
         Update: {
           created_at?: string
           dimension?: string
           id?: string
+          is_reverse?: boolean
+          is_trap?: boolean
+          option_mappings?: Json | null
+          options?: Json | null
           question_number?: number
           question_text?: string
+          question_type?: string
           sub_dimension?: string | null
         }
         Relationships: []
