@@ -204,51 +204,72 @@ export default function Assessment() {
     }
   };
 
+  // Save a single response with retry logic
+  const saveResponseWithRetry = async (questionId: string, dbValue: number, retries = 3): Promise<boolean> => {
+    if (!session) return false;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const { error } = await supabase
+          .from('assessment_responses')
+          .upsert({
+            session_id: session.id,
+            question_id: questionId,
+            response: dbValue,
+          }, {
+            onConflict: 'session_id,question_id',
+          });
+
+        if (!error) return true;
+        
+        console.warn(`Save attempt ${attempt} failed:`, error);
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Exponential backoff
+        }
+      } catch (error) {
+        console.warn(`Save attempt ${attempt} error:`, error);
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+      }
+    }
+    return false;
+  };
+
   // Save a single response and auto-advance
   const saveResponseAndAdvance = useCallback(async (questionId: string, value: number | string) => {
     if (!session) return;
 
-    try {
-      // For the database, we store numeric values
-      // For forced choice, convert A/B to 1/2 (constraint requires 1-5 range)
-      const dbValue = typeof value === 'string' 
-        ? (value === 'A' ? 1 : 2) 
-        : value;
+    // For the database, we store numeric values
+    // For forced choice, convert A/B to 1/2 (constraint requires 1-5 range)
+    const dbValue = typeof value === 'string' 
+      ? (value === 'A' ? 1 : 2) 
+      : value;
 
-      const { error } = await supabase
-        .from('assessment_responses')
-        .upsert({
-          session_id: session.id,
-          question_id: questionId,
-          response: dbValue,
-        }, {
-          onConflict: 'session_id,question_id',
-        });
-
-      if (error) throw error;
-
-      // Update local state with original value (A/B or number)
-      setResponses((prev) => ({ ...prev, [questionId]: value }));
-
-      // Auto-advance to next question after a brief delay using ref for stable value
-      setTimeout(() => {
-        const maxIndex = totalQuestionsRef.current - 1;
-        setCurrentQuestionIndex((prev) => {
-          if (prev < maxIndex) {
-            return prev + 1;
-          }
-          return prev;
-        });
-      }, 300);
-
-    } catch (error: any) {
-      console.error('Error saving response:', error);
+    const saved = await saveResponseWithRetry(questionId, dbValue);
+    
+    if (!saved) {
       toast({
         title: 'Error',
-        description: 'Failed to save your response. Please try again.',
+        description: 'Failed to save your response after multiple attempts. Please check your connection and try again.',
         variant: 'destructive',
       });
+      return; // Don't advance if save failed
     }
+
+    // Update local state with original value (A/B or number)
+    setResponses((prev) => ({ ...prev, [questionId]: value }));
+
+    // Auto-advance to next question after a brief delay using ref for stable value
+    setTimeout(() => {
+      const maxIndex = totalQuestionsRef.current - 1;
+      setCurrentQuestionIndex((prev) => {
+        if (prev < maxIndex) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 300);
   }, [session, toast]);
 
   // Start the assessment
@@ -296,6 +317,56 @@ export default function Assessment() {
 
     setPhase('submitting');
     setSubmitting(true);
+
+    // Verify all responses are saved in database before proceeding
+    const { data: savedResponses, error: verifyError } = await supabase
+      .from('assessment_responses')
+      .select('question_id')
+      .eq('session_id', session.id);
+
+    if (verifyError || !savedResponses) {
+      toast({
+        title: 'Verification Error',
+        description: 'Failed to verify responses. Please try again.',
+        variant: 'destructive',
+      });
+      setPhase('assessment');
+      setSubmitting(false);
+      return;
+    }
+
+    const savedQuestionIds = new Set(savedResponses.map(r => r.question_id));
+    const missingQuestions = questions.filter(q => !savedQuestionIds.has(q.id));
+
+    if (missingQuestions.length > 0) {
+      // Attempt to save missing responses
+      console.log('Missing responses detected, attempting to save:', missingQuestions.length);
+      
+      for (const q of missingQuestions) {
+        const value = responses[q.id];
+        if (value !== undefined) {
+          const dbValue = typeof value === 'string' ? (value === 'A' ? 1 : 2) : value;
+          await saveResponseWithRetry(q.id, dbValue);
+        }
+      }
+      
+      // Re-verify
+      const { data: recheck } = await supabase
+        .from('assessment_responses')
+        .select('question_id')
+        .eq('session_id', session.id);
+      
+      if (!recheck || recheck.length < questions.length) {
+        toast({
+          title: 'Incomplete Submission',
+          description: 'Some responses could not be saved. Please check your connection and try again.',
+          variant: 'destructive',
+        });
+        setPhase('assessment');
+        setSubmitting(false);
+        return;
+      }
+    }
 
     try {
       // Prepare responses with question data for scoring (use original question order for scoring)
