@@ -210,9 +210,9 @@ export default function Assessment() {
 
     try {
       // For the database, we store numeric values
-      // For forced choice, convert A/B to 0/1
+      // For forced choice, convert A/B to 1/2 (constraint requires 1-5 range)
       const dbValue = typeof value === 'string' 
-        ? (value === 'A' ? 0 : 1) 
+        ? (value === 'A' ? 1 : 2) 
         : value;
 
       const { error } = await supabase
