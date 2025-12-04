@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           assessment_result_id: string
           created_at: string
+          honesty_assessment: Json | null
           id: string
           overall_recommendation: string
           personalized_growth_areas: Json
@@ -26,10 +27,12 @@ export type Database = {
           recommendation_reasoning: string
           red_flags: string[]
           response_patterns: Json
+          style_profile: Json | null
         }
         Insert: {
           assessment_result_id: string
           created_at?: string
+          honesty_assessment?: Json | null
           id?: string
           overall_recommendation: string
           personalized_growth_areas?: Json
@@ -38,10 +41,12 @@ export type Database = {
           recommendation_reasoning: string
           red_flags?: string[]
           response_patterns?: Json
+          style_profile?: Json | null
         }
         Update: {
           assessment_result_id?: string
           created_at?: string
+          honesty_assessment?: Json | null
           id?: string
           overall_recommendation?: string
           personalized_growth_areas?: Json
@@ -50,6 +55,7 @@ export type Database = {
           recommendation_reasoning?: string
           red_flags?: string[]
           response_patterns?: Json
+          style_profile?: Json | null
         }
         Relationships: [
           {

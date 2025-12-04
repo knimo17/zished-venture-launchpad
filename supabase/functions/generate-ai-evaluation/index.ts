@@ -6,6 +6,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface TrapAnalysis {
+  trapScore: number;
+  level: 'normal' | 'elevated' | 'likely_exaggeration';
+  shouldFlag: boolean;
+}
+
+interface StyleTraits {
+  action_bias: number;
+  deliberation_bias: number;
+  autonomy: number;
+  collaboration: number;
+  direct: number;
+  diplomatic: number;
+  vision_focus: number;
+  execution_focus: number;
+}
+
 interface EvaluationRequest {
   assessment_result_id: string;
   applicant_name: string;
@@ -40,6 +57,8 @@ interface EvaluationRequest {
     match_reasons: string[];
     concerns: string[];
   }>;
+  trap_analysis?: TrapAnalysis;
+  style_traits?: StyleTraits;
 }
 
 serve(async (req) => {
@@ -59,6 +78,44 @@ serve(async (req) => {
 
     const data: EvaluationRequest = await req.json();
     console.log("Generating AI evaluation for:", data.applicant_name);
+
+    // Build trap analysis section for prompt
+    const trapSection = data.trap_analysis ? `
+RESPONSE HONESTY ANALYSIS:
+- Trap Score: ${data.trap_analysis.trapScore}/20 (${data.trap_analysis.level})
+- Interpretation: ${
+      data.trap_analysis.level === 'normal' 
+        ? 'Normal response patterns - candidate answered honestly with appropriate nuance'
+        : data.trap_analysis.level === 'elevated'
+        ? 'Slightly elevated social desirability - some tendency to present overly positive self-image'
+        : 'High social desirability - responses may be exaggerated or idealized'
+    }
+- Flag for Review: ${data.trap_analysis.shouldFlag ? 'YES - Review with caution' : 'No'}
+` : '';
+
+    // Build style traits section for prompt
+    const styleSection = data.style_traits ? `
+BEHAVIORAL STYLE PROFILE (from forced-choice questions):
+Decision Making Style:
+- Action Bias: ${data.style_traits.action_bias}/5 (prefers quick action)
+- Deliberation Bias: ${data.style_traits.deliberation_bias}/5 (prefers thorough analysis)
+- Primary Style: ${data.style_traits.action_bias > data.style_traits.deliberation_bias ? 'Action-Oriented' : data.style_traits.deliberation_bias > data.style_traits.action_bias ? 'Deliberative' : 'Balanced'}
+
+Work Preference:
+- Autonomy: ${data.style_traits.autonomy}/5 (prefers independent work)
+- Collaboration: ${data.style_traits.collaboration}/5 (prefers team work)
+- Primary Style: ${data.style_traits.autonomy > data.style_traits.collaboration ? 'Independent Worker' : data.style_traits.collaboration > data.style_traits.autonomy ? 'Team Player' : 'Adaptable'}
+
+Communication Approach:
+- Direct: ${data.style_traits.direct}/5 (prefers straight talk)
+- Diplomatic: ${data.style_traits.diplomatic}/5 (prefers tactful communication)
+- Primary Style: ${data.style_traits.direct > data.style_traits.diplomatic ? 'Direct Communicator' : data.style_traits.diplomatic > data.style_traits.direct ? 'Diplomatic Communicator' : 'Situationally Adaptive'}
+
+Focus Orientation:
+- Vision Focus: ${data.style_traits.vision_focus}/5 (big picture oriented)
+- Execution Focus: ${data.style_traits.execution_focus}/5 (detail oriented)
+- Primary Style: ${data.style_traits.vision_focus > data.style_traits.execution_focus ? 'Strategic Thinker' : data.style_traits.execution_focus > data.style_traits.vision_focus ? 'Execution-Focused' : 'Balanced Perspective'}
+` : '';
 
     const prompt = `Analyze this candidate's assessment for a venture operator position at a startup studio. 
 The candidate is likely a new graduate or intern - focus on potential, not experience.
@@ -87,13 +144,18 @@ Team Compatibility:
 - Conflict Response: ${data.team_compatibility_scores.conflictResponse}
 - Decision Making: ${data.team_compatibility_scores.decisionMaking}
 - Collaboration: ${data.team_compatibility_scores.collaboration}
-
+${trapSection}
+${styleSection}
 Top Venture Matches:
 ${data.venture_matches.slice(0, 3).map((v, i) => `${i + 1}. ${v.venture_name} (${v.industry}) - ${v.overall_score}%
    Reasons: ${v.match_reasons.join(', ')}
    Concerns: ${v.concerns.join(', ')}`).join('\n')}
 
-IMPORTANT: This is a new graduate/intern candidate. Focus on potential, learning indicators, and growth mindset rather than experience.
+IMPORTANT INSTRUCTIONS:
+1. This is a new graduate/intern candidate. Focus on potential, learning indicators, and growth mindset rather than experience.
+2. ${data.trap_analysis?.shouldFlag ? 'ATTENTION: The trap analysis flagged potential response exaggeration. Factor this into your confidence level and note any concerns about response reliability.' : 'Response patterns appear normal.'}
+3. Consider their behavioral style profile when assessing team fit and role recommendations.
+4. Look for consistency between their stated styles and their dimension scores.
 
 Generate a comprehensive evaluation. Be specific and evidence-based.`;
 
@@ -113,6 +175,10 @@ Generate a comprehensive evaluation. Be specific and evidence-based.`;
 - Balanced: Acknowledge both strengths and growth areas
 - Actionable: Provide specific recommendations
 - Empathetic: Remember candidates are early-career and evaluating potential, not past achievements
+- Honest: Consider response reliability when making strong claims
+
+When trap analysis indicates elevated social desirability, be more conservative in your assessment and note this in your evaluation.
+Factor behavioral style preferences into team fit assessments and role recommendations.
 
 Always respond with valid JSON only, no markdown.`,
           },
@@ -168,7 +234,32 @@ Always respond with valid JSON only, no markdown.`,
                   red_flags: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Any concerns that warrant attention. Empty if none.",
+                    description: "Any concerns that warrant attention, including response reliability issues. Empty if none.",
+                  },
+                  honesty_assessment: {
+                    type: "object",
+                    properties: {
+                      reliability: { 
+                        type: "string", 
+                        enum: ["High", "Moderate", "Low"],
+                        description: "Overall reliability of responses based on trap analysis"
+                      },
+                      notes: { 
+                        type: "string", 
+                        description: "Brief explanation of response reliability assessment" 
+                      },
+                    },
+                    required: ["reliability", "notes"],
+                  },
+                  style_profile: {
+                    type: "object",
+                    properties: {
+                      decision_style: { type: "string", description: "How they make decisions (e.g., 'Quick-acting with bias toward action' or 'Methodical and analytical')" },
+                      work_preference: { type: "string", description: "Preferred working arrangement (e.g., 'Thrives with autonomy' or 'Collaborative team player')" },
+                      communication_approach: { type: "string", description: "Communication style (e.g., 'Direct and candid' or 'Tactful and considerate')" },
+                      primary_focus: { type: "string", description: "Where they focus attention (e.g., 'Big-picture strategist' or 'Detail-oriented executor')" },
+                    },
+                    required: ["decision_style", "work_preference", "communication_approach", "primary_focus"],
                   },
                   overall_recommendation: {
                     type: "string",
@@ -186,6 +277,8 @@ Always respond with valid JSON only, no markdown.`,
                   "growth_areas",
                   "response_patterns",
                   "red_flags",
+                  "honesty_assessment",
+                  "style_profile",
                   "overall_recommendation",
                   "recommendation_reasoning",
                 ],
@@ -223,6 +316,8 @@ Always respond with valid JSON only, no markdown.`,
       red_flags: evaluation.red_flags || [],
       overall_recommendation: evaluation.overall_recommendation,
       recommendation_reasoning: evaluation.recommendation_reasoning,
+      honesty_assessment: evaluation.honesty_assessment || {},
+      style_profile: evaluation.style_profile || {},
     });
 
     if (insertError) {
@@ -239,7 +334,9 @@ Always respond with valid JSON only, no markdown.`,
         venture,
         data.applicant_name,
         data.primary_operator_type,
-        data.dimension_scores
+        data.dimension_scores,
+        data.style_traits,
+        data.trap_analysis
       );
     }
 
@@ -263,9 +360,23 @@ async function generateVentureAnalysis(
   venture: any,
   applicantName: string,
   operatorType: string,
-  dimensionScores: any
+  dimensionScores: any,
+  styleTraits?: StyleTraits,
+  trapAnalysis?: TrapAnalysis
 ) {
   try {
+    const styleContext = styleTraits ? `
+Candidate's Work Style:
+- Decision Style: ${styleTraits.action_bias > styleTraits.deliberation_bias ? 'Action-oriented' : 'Deliberative'}
+- Work Preference: ${styleTraits.autonomy > styleTraits.collaboration ? 'Independent' : 'Collaborative'}
+- Communication: ${styleTraits.direct > styleTraits.diplomatic ? 'Direct' : 'Diplomatic'}
+- Focus: ${styleTraits.vision_focus > styleTraits.execution_focus ? 'Strategic/Vision' : 'Execution/Detail'}
+` : '';
+
+    const honestyNote = trapAnalysis?.shouldFlag 
+      ? '\nNote: Response reliability flagged - assess fit with appropriate caution.'
+      : '';
+
     const prompt = `Generate a specific fit analysis for ${applicantName} (${operatorType}) for ${venture.venture_name} (${venture.industry}).
 
 Match Score: ${venture.overall_score}%
@@ -276,8 +387,10 @@ Candidate's dimension scores:
 - Ownership: ${dimensionScores.ownership}/50
 - Execution: ${dimensionScores.execution}/50
 - Hustle: ${dimensionScores.hustle}/50
+${styleContext}${honestyNote}
 
-Remember: This is a new graduate/intern. Focus on potential and learning ability, not experience.`;
+Remember: This is a new graduate/intern. Focus on potential and learning ability, not experience.
+Consider their behavioral style when recommending roles and onboarding approaches.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -290,7 +403,7 @@ Remember: This is a new graduate/intern. Focus on potential and learning ability
         messages: [
           {
             role: "system",
-            content: "You are an expert at matching talent to ventures. Provide specific, actionable insights. Respond with valid JSON only.",
+            content: "You are an expert at matching talent to ventures. Provide specific, actionable insights. Consider behavioral styles when making role recommendations. Respond with valid JSON only.",
           },
           { role: "user", content: prompt },
         ],
@@ -309,12 +422,12 @@ Remember: This is a new graduate/intern. Focus on potential and learning ability
                   },
                   role_recommendation: {
                     type: "string",
-                    description: "Recommended starting role with brief reasoning",
+                    description: "Recommended starting role with brief reasoning, considering their behavioral style",
                   },
                   onboarding_suggestions: {
                     type: "array",
                     items: { type: "string" },
-                    description: "3-4 specific onboarding suggestions to help them succeed",
+                    description: "3-4 specific onboarding suggestions tailored to their style preferences",
                   },
                 },
                 required: ["fit_narrative", "role_recommendation", "onboarding_suggestions"],

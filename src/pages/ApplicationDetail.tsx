@@ -92,6 +92,8 @@ interface AIEvaluation {
   red_flags: string[];
   overall_recommendation: string;
   recommendation_reasoning: string;
+  honesty_assessment?: { reliability: 'High' | 'Moderate' | 'Low'; notes: string };
+  style_profile?: { decision_style: string; work_preference: string; communication_approach: string; primary_focus: string };
 }
 
 interface AIVentureAnalysis {
@@ -238,6 +240,8 @@ export default function ApplicationDetail() {
                 red_flags: aiEvalData.red_flags || [],
                 overall_recommendation: aiEvalData.overall_recommendation,
                 recommendation_reasoning: aiEvalData.recommendation_reasoning,
+                honesty_assessment: (aiEvalData as any).honesty_assessment as any,
+                style_profile: (aiEvalData as any).style_profile as any,
               });
             }
 
@@ -630,7 +634,6 @@ export default function ApplicationDetail() {
           </CardContent>
         </Card>
 
-        {/* AI Evaluation Section */}
         {aiEvaluation && (
           <AIEvaluationSection
             personalizedSummary={aiEvaluation.personalized_summary}
@@ -640,6 +643,8 @@ export default function ApplicationDetail() {
             redFlags={aiEvaluation.red_flags}
             overallRecommendation={aiEvaluation.overall_recommendation}
             recommendationReasoning={aiEvaluation.recommendation_reasoning}
+            honestyAssessment={aiEvaluation.honesty_assessment}
+            styleProfile={aiEvaluation.style_profile}
           />
         )}
 
