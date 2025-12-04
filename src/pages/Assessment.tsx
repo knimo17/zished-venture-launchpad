@@ -640,22 +640,25 @@ export default function Assessment() {
         onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
         className="space-y-3"
       >
-        {currentQ.options.map((option, idx) => (
-          <Label
-            key={idx}
-            htmlFor={`scenario-${currentQ.id}-${idx}`}
-            className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
-              responses[currentQ.id] === idx
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:bg-muted/50'
-            }`}
-          >
-            <RadioGroupItem value={idx.toString()} id={`scenario-${currentQ.id}-${idx}`} />
-            <span className="flex-1 font-normal">
-              {option}
-            </span>
-          </Label>
-        ))}
+        {currentQ.options.map((option, idx) => {
+          const optionValue = idx + 1; // Use 1-indexed for database (1-5 range)
+          return (
+            <Label
+              key={idx}
+              htmlFor={`scenario-${currentQ.id}-${idx}`}
+              className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+                responses[currentQ.id] === optionValue
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+            >
+              <RadioGroupItem value={optionValue.toString()} id={`scenario-${currentQ.id}-${idx}`} />
+              <span className="flex-1 font-normal">
+                {option}
+              </span>
+            </Label>
+          );
+        })}
       </RadioGroup>
     );
   };
