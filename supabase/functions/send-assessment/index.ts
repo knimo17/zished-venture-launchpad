@@ -99,6 +99,9 @@ const handler = async (req: Request): Promise<Response> => {
     const rawAppUrl = Deno.env.get("APP_URL") || "https://fezjiutlszkrvdubfvnc.lovableproject.com";
     const appUrl = rawAppUrl.replace(/\/+$/, '');
     const assessmentUrl = `${appUrl}/assessment/${token}`;
+    
+    console.log(`APP_URL from env: ${rawAppUrl}`);
+    console.log(`Assessment URL being sent: ${assessmentUrl}`);
 
     // Send email
     const emailResponse = await resend.emails.send({
