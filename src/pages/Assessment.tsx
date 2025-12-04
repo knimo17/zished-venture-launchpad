@@ -571,6 +571,7 @@ export default function Assessment() {
   // Render Likert question
   const renderLikertQuestion = () => (
     <RadioGroup
+      key={currentQ.id}
       value={responses[currentQ.id]?.toString() || ''}
       onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
       className="space-y-3"
@@ -578,14 +579,14 @@ export default function Assessment() {
       {likertLabels.map((item) => (
         <Label
           key={item.value}
-          htmlFor={`option-${item.value}`}
+          htmlFor={`option-${currentQ.id}-${item.value}`}
           className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
             responses[currentQ.id] === item.value
               ? 'border-primary bg-primary/5'
               : 'border-border hover:bg-muted/50'
           }`}
         >
-          <RadioGroupItem value={item.value.toString()} id={`option-${item.value}`} />
+          <RadioGroupItem value={item.value.toString()} id={`option-${currentQ.id}-${item.value}`} />
           <span className="flex-1 font-normal">
             {item.label}
           </span>
@@ -600,6 +601,7 @@ export default function Assessment() {
     
     return (
       <RadioGroup
+        key={currentQ.id}
         value={responses[currentQ.id]?.toString() || ''}
         onValueChange={(value) => handleResponseChange(currentQ.id, value)}
         className="space-y-4"
@@ -607,14 +609,14 @@ export default function Assessment() {
         {['A', 'B'].map((choice, idx) => (
           <Label
             key={choice}
-            htmlFor={`choice-${choice}`}
+            htmlFor={`choice-${currentQ.id}-${choice}`}
             className={`flex items-start space-x-3 p-5 rounded-lg border-2 transition-all cursor-pointer ${
               responses[currentQ.id] === choice
                 ? 'border-primary bg-primary/5 shadow-md'
                 : 'border-border hover:bg-muted/50 hover:border-muted-foreground/30'
             }`}
           >
-            <RadioGroupItem value={choice} id={`choice-${choice}`} className="mt-1" />
+            <RadioGroupItem value={choice} id={`choice-${currentQ.id}-${choice}`} className="mt-1" />
             <div className="flex-1">
               <span className="font-medium text-sm text-muted-foreground mb-1 block">Option {choice}</span>
               <span className="text-base">
@@ -633,6 +635,7 @@ export default function Assessment() {
     
     return (
       <RadioGroup
+        key={currentQ.id}
         value={responses[currentQ.id]?.toString() || ''}
         onValueChange={(value) => handleResponseChange(currentQ.id, parseInt(value))}
         className="space-y-3"
@@ -640,14 +643,14 @@ export default function Assessment() {
         {currentQ.options.map((option, idx) => (
           <Label
             key={idx}
-            htmlFor={`scenario-${idx}`}
+            htmlFor={`scenario-${currentQ.id}-${idx}`}
             className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors cursor-pointer ${
               responses[currentQ.id] === idx
                 ? 'border-primary bg-primary/5'
                 : 'border-border hover:bg-muted/50'
             }`}
           >
-            <RadioGroupItem value={idx.toString()} id={`scenario-${idx}`} />
+            <RadioGroupItem value={idx.toString()} id={`scenario-${currentQ.id}-${idx}`} />
             <span className="flex-1 font-normal">
               {option}
             </span>
