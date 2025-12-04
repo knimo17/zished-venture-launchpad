@@ -103,8 +103,9 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="margin: 30px 0; padding: 20px; background: #f9f9f9; border-radius: 8px;">
             <h3 style="color: #333; margin-top: 0;">What happens next?</h3>
             <ol style="color: #666; line-height: 1.8;">
-              <li>We review your application and responses</li>
-              <li>If shortlisted, we'll schedule a conversation</li>
+              <li>We review your application and written responses</li>
+              <li>If shortlisted, you'll complete our operator-style assessment</li>
+              <li>Based on your results, we'll schedule a conversation</li>
               <li>Final selection and onboarding</li>
             </ol>
           </div>
