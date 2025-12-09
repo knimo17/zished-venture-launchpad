@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
-import { calculateAllVentureMatches, VentureProfile, AssessmentData } from '@/lib/ventureMatching';
+import { calculateAllVentureMatches, VentureProfile, AssessmentData, VentureMatchResult } from '@/lib/ventureMatching';
 import { CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
 import { Json } from '@/integrations/supabase/types';
 
@@ -258,7 +258,7 @@ export default function Assessment() {
       
       setQuestions(transformedQuestions);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading assessment:', error);
       toast({
         title: 'Error',
@@ -353,7 +353,7 @@ export default function Assessment() {
 
       setSession({ ...session, status: 'in_progress' });
       setPhase('assessment');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
         description: 'Failed to start assessment.',
@@ -497,7 +497,7 @@ export default function Assessment() {
         .select('*')
         .eq('is_active', true);
 
-      let ventureMatches: any[] = [];
+      let ventureMatches: VentureMatchResult[] = [];
       if (ventures && ventures.length > 0 && resultData) {
         const assessmentData: AssessmentData = {
           dimensionScores: results.dimensionScores,
@@ -529,8 +529,8 @@ export default function Assessment() {
       }
 
       // Generate AI interview questions for admins (fire and forget)
-      const ventureMatchesForAI = ventureMatches.slice(0, 3).map((m: any) => {
-        const venture = ventures?.find((v: any) => v.id === m.ventureId);
+      const ventureMatchesForAI = ventureMatches.slice(0, 3).map((m) => {
+        const venture = ventures?.find((v) => v.id === m.ventureId);
         return {
           venture_id: m.ventureId,
           venture_name: venture?.name || 'Unknown',
@@ -586,7 +586,7 @@ export default function Assessment() {
       if (sessionError) throw sessionError;
 
       navigate('/assessment-thank-you');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error completing assessment:', error);
       toast({
         title: 'Error',

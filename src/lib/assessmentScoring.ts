@@ -320,7 +320,7 @@ export function calculateTeamCompatibilityScores(
   const collaboration = styleTraits.collaboration > 0 ? 4 : 3;
 
   // Apply scenario adjustments
-  let scenarioAdjustments = {
+  const scenarioAdjustments = {
     workingStyle: 0,
     communication: 0,
     conflictResponse: 0,

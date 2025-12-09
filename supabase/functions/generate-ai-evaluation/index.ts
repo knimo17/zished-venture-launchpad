@@ -344,23 +344,40 @@ Always respond with valid JSON only, no markdown.`,
       JSON.stringify({ success: true, evaluation }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating AI evaluation:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'An unknown error occurred' }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
 
+interface VentureMatch {
+  venture_id: string;
+  venture_name: string;
+  industry: string;
+  overall_score: number;
+  match_reasons: string[];
+  concerns: string[];
+}
+
+interface DimensionScores {
+  ownership: number;
+  execution: number;
+  hustle: number;
+  problemSolving: number;
+  leadership: number;
+}
+
 async function generateVentureAnalysis(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   apiKey: string,
   assessmentResultId: string,
-  venture: any,
+  venture: VentureMatch,
   applicantName: string,
   operatorType: string,
-  dimensionScores: any,
+  dimensionScores: DimensionScores,
   styleTraits?: StyleTraits,
   trapAnalysis?: TrapAnalysis
 ) {
