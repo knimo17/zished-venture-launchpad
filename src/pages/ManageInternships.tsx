@@ -56,10 +56,10 @@ export default function ManageInternships() {
 
       if (error) throw error;
       setInternships(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -97,10 +97,10 @@ export default function ManageInternships() {
       });
       setEditingId(null);
       fetchInternships();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     }
@@ -129,10 +129,10 @@ export default function ManageInternships() {
       if (error) throw error;
       toast({ title: 'Success', description: 'Internship deleted successfully' });
       fetchInternships();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     }

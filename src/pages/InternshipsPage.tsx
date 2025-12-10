@@ -35,10 +35,10 @@ export default function InternshipsPage() {
 
       if (error) throw error;
       setInternships(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {

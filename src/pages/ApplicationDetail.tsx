@@ -163,11 +163,11 @@ export default function ApplicationDetail() {
       if (error) throw error;
       setApplication(data);
       setNotes(data.admin_notes || '');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching application:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
       navigate('/admin/dashboard');
@@ -213,16 +213,16 @@ export default function ApplicationDetail() {
               .order('overall_score', { ascending: false });
 
             if (matchesData) {
-              const formattedMatches: VentureMatch[] = matchesData.map((m: any) => ({
+              const formattedMatches: VentureMatch[] = matchesData.map((m) => ({
                 venture_id: m.venture_id,
-                venture_name: m.ventures?.name || 'Unknown',
-                industry: m.ventures?.industry || 'Unknown',
+                venture_name: (m.ventures as { name?: string; industry?: string } | null)?.name || 'Unknown',
+                industry: (m.ventures as { name?: string; industry?: string } | null)?.industry || 'Unknown',
                 overall_score: m.overall_score,
                 operator_type_score: m.operator_type_score,
                 dimension_score: m.dimension_score,
                 compatibility_score: m.compatibility_score,
-                match_reasons: m.match_reasons || [],
-                concerns: m.concerns || [],
+                match_reasons: (m.match_reasons as string[]) || [],
+                concerns: (m.concerns as string[]) || [],
                 suggested_role: m.suggested_role,
               }));
               setVentureMatches(formattedMatches);
@@ -236,16 +236,17 @@ export default function ApplicationDetail() {
               .maybeSingle();
 
             if (aiEvalData) {
+              const evalDataRecord = aiEvalData as Record<string, unknown>;
               setAiEvaluation({
                 personalized_summary: aiEvalData.personalized_summary,
-                personalized_strengths: aiEvalData.personalized_strengths as any,
-                personalized_growth_areas: aiEvalData.personalized_growth_areas as any,
-                response_patterns: aiEvalData.response_patterns as any,
+                personalized_strengths: aiEvalData.personalized_strengths as AIEvaluation['personalized_strengths'],
+                personalized_growth_areas: aiEvalData.personalized_growth_areas as AIEvaluation['personalized_growth_areas'],
+                response_patterns: aiEvalData.response_patterns as AIEvaluation['response_patterns'],
                 red_flags: aiEvalData.red_flags || [],
                 overall_recommendation: aiEvalData.overall_recommendation,
                 recommendation_reasoning: aiEvalData.recommendation_reasoning,
-                honesty_assessment: (aiEvalData as any).honesty_assessment as any,
-                style_profile: (aiEvalData as any).style_profile as any,
+                honesty_assessment: evalDataRecord.honesty_assessment as AIEvaluation['honesty_assessment'],
+                style_profile: evalDataRecord.style_profile as AIEvaluation['style_profile'],
               });
             }
 
@@ -256,13 +257,13 @@ export default function ApplicationDetail() {
               .eq('assessment_result_id', resultsData.id);
 
             if (aiVentureData) {
-              setAiVentureAnalyses(aiVentureData.map((v: any) => ({
+              setAiVentureAnalyses(aiVentureData.map((v) => ({
                 venture_id: v.venture_id,
                 fit_narrative: v.fit_narrative,
                 role_recommendation: v.role_recommendation,
-                onboarding_suggestions: v.onboarding_suggestions || [],
-                venture_name: v.ventures?.name || 'Unknown',
-                industry: v.ventures?.industry || 'Unknown',
+                onboarding_suggestions: (v.onboarding_suggestions as string[]) || [],
+                venture_name: (v.ventures as { name?: string; industry?: string } | null)?.name || 'Unknown',
+                industry: (v.ventures as { name?: string; industry?: string } | null)?.industry || 'Unknown',
               })));
             }
 
@@ -277,7 +278,7 @@ export default function ApplicationDetail() {
               setAiInterviewQuestions(aiQuestionsData);
 
               // Fetch responses for these questions
-              const questionIds = aiQuestionsData.map((q: any) => q.id);
+              const questionIds = aiQuestionsData.map((q) => q.id);
               const { data: responsesData } = await supabase
                 .from('ai_interview_responses')
                 .select('*')
@@ -313,11 +314,11 @@ export default function ApplicationDetail() {
 
       // Refresh assessment data
       fetchAssessmentData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending assessment:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to send assessment',
+        description: error instanceof Error ? error.message : 'Failed to send assessment',
         variant: 'destructive',
       });
     } finally {
@@ -339,10 +340,10 @@ export default function ApplicationDetail() {
         title: 'Success',
         description: 'Application status updated',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     }
@@ -366,7 +367,7 @@ export default function ApplicationDetail() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
         description: 'Failed to download resume',
@@ -394,10 +395,10 @@ export default function ApplicationDetail() {
         title: 'Success',
         description: 'Notes saved successfully',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {

@@ -186,7 +186,13 @@ Always respond with valid JSON only.`,
     });
 
     // Save questions to database
-    const questionsToInsert = result.questions.map((q: any, index: number) => ({
+    interface GeneratedQuestion {
+      question_text: string;
+      question_context: string;
+      probing_area: string;
+      related_venture_name?: string;
+    }
+    const questionsToInsert = result.questions.map((q: GeneratedQuestion, index: number) => ({
       assessment_result_id: data.assessment_result_id,
       question_text: q.question_text,
       question_context: q.question_context,
@@ -211,10 +217,10 @@ Always respond with valid JSON only.`,
       JSON.stringify({ success: true, questions: insertedQuestions }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating interview questions:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'An unknown error occurred' }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
