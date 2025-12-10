@@ -371,7 +371,7 @@ interface DimensionScores {
 }
 
 async function generateVentureAnalysis(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   apiKey: string,
   assessmentResultId: string,
   venture: VentureMatch,
