@@ -208,12 +208,75 @@ export default function Assessment() {
           return;
         }
 
-        if (existingResponses && existingResponses.length > 0) {
-          toast({
-            title: 'Assessment In Progress',
-            description: 'You have already started this assessment. Please complete it in your current browser session.',
-            variant: 'destructive',
+        // If has some responses but not all, allow them to continue from where they left off
+        if (existingResponses && existingResponses.length > 0 && existingResponses.length < totalQuestions!) {
+          // Load questions so we can find unanswered ones
+          const { data: questionsData } = await supabase
+            .from('assessment_questions')
+            .select('*')
+            .order('question_number', { ascending: true });
+          
+          let transformedQuestions: Question[] = [];
+          if (questionsData) {
+            transformedQuestions = questionsData.map((q) => ({
+              id: q.id,
+              question_number: q.question_number,
+              question_text: q.question_text,
+              dimension: q.dimension,
+              sub_dimension: q.sub_dimension,
+              is_reverse: q.is_reverse || false,
+              is_trap: q.is_trap || false,
+              question_type: (q.question_type as 'likert' | 'forced_choice' | 'scenario') || 'likert',
+              options: q.options ? (q.options as string[]) : null,
+              option_mappings: q.option_mappings ? (q.option_mappings as Record<string, Record<string, number>>) : null,
+            }));
+            setQuestions(transformedQuestions);
+          }
+          
+          // Load existing responses
+          const loadedResponses: Record<string, number | string> = {};
+          const answeredIds = new Set<string>();
+          existingResponses.forEach(r => {
+            const question = transformedQuestions.find(q => q.id === r.question_id);
+            if (question?.question_type === 'forced_choice') {
+              loadedResponses[r.question_id] = r.response === 1 ? 'A' : 'B';
+            } else {
+              loadedResponses[r.question_id] = r.response;
+            }
+            answeredIds.add(r.question_id);
           });
+          setResponses(loadedResponses);
+          setSession(sessionData);
+          
+          // Load application data
+          const { data: appData } = await supabase
+            .from('applications')
+            .select('name')
+            .eq('id', sessionData.application_id)
+            .maybeSingle();
+          
+          if (appData) {
+            setApplication(appData);
+          } else {
+            setApplication({ name: 'Applicant' });
+          }
+          
+          // Find first unanswered question index in shuffled order
+          const likertQ = transformedQuestions.filter(q => q.question_type === 'likert');
+          const forcedQ = transformedQuestions.filter(q => q.question_type === 'forced_choice');
+          const scenarioQ = transformedQuestions.filter(q => q.question_type === 'scenario');
+          const shuffled = [...seededShuffle(likertQ, sessionData.id), ...forcedQ, ...scenarioQ];
+          
+          const firstUnansweredIndex = shuffled.findIndex(q => !answeredIds.has(q.id));
+          setCurrentQuestionIndex(firstUnansweredIndex >= 0 ? firstUnansweredIndex : shuffled.length - 1);
+          
+          toast({
+            title: 'Resuming Assessment',
+            description: `You have ${totalQuestions! - existingResponses.length} questions remaining.`,
+          });
+          
+          setPhase('assessment');
+          setLoading(false);
           return;
         }
       }
@@ -302,9 +365,26 @@ export default function Assessment() {
     return false;
   };
 
+  // Track if we're currently advancing to prevent double-clicks
+  const isAdvancingRef = useRef(false);
+  const lastAnsweredQuestionRef = useRef<string | null>(null);
+
   // Save a single response and auto-advance
   const saveResponseAndAdvance = useCallback(async (questionId: string, value: number | string) => {
     if (!session) return;
+    
+    // If already answered this question, just update the value but don't advance again
+    if (lastAnsweredQuestionRef.current === questionId) {
+      // Still save to DB in case value changed
+      const dbValue = typeof value === 'string' ? (value === 'A' ? 1 : 2) : value;
+      await saveResponseWithRetry(questionId, dbValue);
+      setResponses((prev) => ({ ...prev, [questionId]: value }));
+      return;
+    }
+
+    // Prevent rapid double-clicks from causing multiple advances
+    if (isAdvancingRef.current) return;
+    isAdvancingRef.current = true;
 
     // For the database, we store numeric values
     // For forced choice, convert A/B to 1/2 (constraint requires 1-5 range)
@@ -315,6 +395,7 @@ export default function Assessment() {
     const saved = await saveResponseWithRetry(questionId, dbValue);
     
     if (!saved) {
+      isAdvancingRef.current = false;
       toast({
         title: 'Error',
         description: 'Failed to save your response after multiple attempts. Please check your connection and try again.',
@@ -322,6 +403,9 @@ export default function Assessment() {
       });
       return; // Don't advance if save failed
     }
+
+    // Track that we answered this question
+    lastAnsweredQuestionRef.current = questionId;
 
     // Update local state with original value (A/B or number)
     setResponses((prev) => ({ ...prev, [questionId]: value }));
@@ -335,6 +419,11 @@ export default function Assessment() {
         }
         return prev;
       });
+      // Reset advancing lock after state update is processed
+      setTimeout(() => {
+        isAdvancingRef.current = false;
+        lastAnsweredQuestionRef.current = null;
+      }, 50);
     }, 300);
   }, [session, toast]);
 
