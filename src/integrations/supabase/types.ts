@@ -646,6 +646,205 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_report_activities: {
+        Row: {
+          action_taken: string
+          created_at: string
+          id: string
+          outcome_insight: string
+          report_id: string
+          status: string
+        }
+        Insert: {
+          action_taken: string
+          created_at?: string
+          id?: string
+          outcome_insight: string
+          report_id: string
+          status: string
+        }
+        Update: {
+          action_taken?: string
+          created_at?: string
+          id?: string
+          outcome_insight?: string
+          report_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_report_activities_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_report_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          operator_email: string
+          operator_name: string
+          sent_at: string
+          status: string
+          token: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          operator_email: string
+          operator_name: string
+          sent_at?: string
+          status?: string
+          token: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          operator_email?: string
+          operator_name?: string
+          sent_at?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      weekly_reports: {
+        Row: {
+          active_users: string | null
+          ai_tools_details: Json | null
+          approach_viability: string
+          assigned_businesses: string[]
+          biggest_blocker: string
+          capital_needed_ghs: number | null
+          capital_use: string | null
+          challenges_risks: string
+          costs_ghs: number | null
+          created_at: string
+          decisions_owned_escalated: string
+          delayed_decisions: string | null
+          id: string
+          key_decisions: string
+          key_insight: string
+          leadership_role: string
+          leads_partnerships: string | null
+          next_week_priorities: string
+          no_action_reason: string | null
+          operator_email: string
+          operator_name: string
+          personal_execution: string
+          problem_change_details: string | null
+          problem_changed: boolean
+          problem_definition: string
+          qualitative_traction: string | null
+          revenue_ghs: number | null
+          session_id: string
+          solution_description: string
+          strategy_change_details: string | null
+          strategy_changed: boolean
+          support_needed: string
+          talent_capability_gaps: string
+          trade_offs_evaluated: string
+          unconstrained_decision: string
+          updated_at: string
+          used_ai_tools: boolean
+          week_ending: string
+        }
+        Insert: {
+          active_users?: string | null
+          ai_tools_details?: Json | null
+          approach_viability: string
+          assigned_businesses?: string[]
+          biggest_blocker: string
+          capital_needed_ghs?: number | null
+          capital_use?: string | null
+          challenges_risks: string
+          costs_ghs?: number | null
+          created_at?: string
+          decisions_owned_escalated: string
+          delayed_decisions?: string | null
+          id?: string
+          key_decisions: string
+          key_insight: string
+          leadership_role: string
+          leads_partnerships?: string | null
+          next_week_priorities: string
+          no_action_reason?: string | null
+          operator_email: string
+          operator_name: string
+          personal_execution: string
+          problem_change_details?: string | null
+          problem_changed?: boolean
+          problem_definition: string
+          qualitative_traction?: string | null
+          revenue_ghs?: number | null
+          session_id: string
+          solution_description: string
+          strategy_change_details?: string | null
+          strategy_changed?: boolean
+          support_needed: string
+          talent_capability_gaps: string
+          trade_offs_evaluated: string
+          unconstrained_decision: string
+          updated_at?: string
+          used_ai_tools?: boolean
+          week_ending: string
+        }
+        Update: {
+          active_users?: string | null
+          ai_tools_details?: Json | null
+          approach_viability?: string
+          assigned_businesses?: string[]
+          biggest_blocker?: string
+          capital_needed_ghs?: number | null
+          capital_use?: string | null
+          challenges_risks?: string
+          costs_ghs?: number | null
+          created_at?: string
+          decisions_owned_escalated?: string
+          delayed_decisions?: string | null
+          id?: string
+          key_decisions?: string
+          key_insight?: string
+          leadership_role?: string
+          leads_partnerships?: string | null
+          next_week_priorities?: string
+          no_action_reason?: string | null
+          operator_email?: string
+          operator_name?: string
+          personal_execution?: string
+          problem_change_details?: string | null
+          problem_changed?: boolean
+          problem_definition?: string
+          qualitative_traction?: string | null
+          revenue_ghs?: number | null
+          session_id?: string
+          solution_description?: string
+          strategy_change_details?: string | null
+          strategy_changed?: boolean
+          support_needed?: string
+          talent_capability_gaps?: string
+          trade_offs_evaluated?: string
+          unconstrained_decision?: string
+          updated_at?: string
+          used_ai_tools?: boolean
+          week_ending?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_report_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
