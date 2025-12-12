@@ -21,6 +21,10 @@ import ManageInternships from "./pages/ManageInternships";
 import ManageSiteContent from "./pages/ManageSiteContent";
 import Assessment from "./pages/Assessment";
 import AssessmentThankYou from "./pages/AssessmentThankYou";
+import WeeklyReportForm from "./pages/WeeklyReportForm";
+import WeeklyReportThankYou from "./pages/WeeklyReportThankYou";
+import AdminWeeklyReports from "./pages/AdminWeeklyReports";
+import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +49,10 @@ const App = () => (
             {/* Public assessment routes (no navigation/banner) */}
             <Route path="/assessment/:token" element={<Assessment />} />
             <Route path="/assessment-thank-you" element={<AssessmentThankYou />} />
+            
+            {/* Public weekly report routes (no navigation/banner) */}
+            <Route path="/weekly-report/:token" element={<WeeklyReportForm />} />
+            <Route path="/weekly-report-thank-you" element={<WeeklyReportThankYou />} />
             
             {/* Main app routes with navigation */}
             <Route element={<MainLayout />}>
@@ -88,6 +96,22 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ManageSiteContent />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/weekly-reports" 
+                element={
+                  <ProtectedRoute>
+                    <AdminWeeklyReports />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/weekly-report/:id" 
+                element={
+                  <ProtectedRoute>
+                    <WeeklyReportDetail />
                   </ProtectedRoute>
                 } 
               />
