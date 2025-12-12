@@ -112,12 +112,11 @@ export default function Assessment() {
 
   const loadAssessment = async () => {
     try {
-      // Get session by token
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('assessment_sessions')
-        .select('*')
-        .eq('token', token)
-        .maybeSingle();
+      // Get session by token using secure RPC function
+      const { data: sessionRows, error: sessionError } = await supabase
+        .rpc('get_assessment_session_by_token', { session_token: token });
+
+      const sessionData = sessionRows?.[0] || null;
 
       if (sessionError || !sessionData) {
         toast({
@@ -134,12 +133,10 @@ export default function Assessment() {
         return;
       }
 
-      // If already started, check response status
+      // If already started, check response status using secure RPC
       if (sessionData.status === 'in_progress') {
         const { data: existingResponses } = await supabase
-          .from('assessment_responses')
-          .select('id, question_id, response')
-          .eq('session_id', sessionData.id);
+          .rpc('get_assessment_responses_by_token', { session_token: token });
 
         const { count: totalQuestions } = await supabase
           .from('assessment_questions')
@@ -333,24 +330,20 @@ export default function Assessment() {
     }
   };
 
-  // Save a single response with retry logic
+  // Save a single response with retry logic using secure RPC function
   const saveResponseWithRetry = async (questionId: string, dbValue: number, retries = 3): Promise<boolean> => {
-    if (!session) return false;
-    
+    if (!token) return false;
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const { error } = await supabase
-          .from('assessment_responses')
-          .upsert({
-            session_id: session.id,
-            question_id: questionId,
-            response: dbValue,
-          }, {
-            onConflict: 'session_id,question_id',
-          });
+        const { error } = await supabase.rpc('save_assessment_response', {
+          session_token: token,
+          p_question_id: questionId,
+          p_response: dbValue,
+        });
 
         if (!error) return true;
-        
+
         console.warn(`Save attempt ${attempt} failed:`, error);
         if (attempt < retries) {
           await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Exponential backoff
@@ -427,18 +420,16 @@ export default function Assessment() {
     }, 300);
   }, [session, toast]);
 
-  // Start the assessment
+  // Start the assessment using secure RPC function
   const handleStart = async () => {
-    if (!session) return;
+    if (!session || !token) return;
 
     try {
-      await supabase
-        .from('assessment_sessions')
-        .update({ 
-          status: 'in_progress', 
-          started_at: new Date().toISOString() 
-        })
-        .eq('id', session.id);
+      await supabase.rpc('update_assessment_session', {
+        session_token: token,
+        new_status: 'in_progress',
+        new_started_at: new Date().toISOString(),
+      });
 
       setSession({ ...session, status: 'in_progress' });
       setPhase('assessment');
@@ -484,11 +475,9 @@ export default function Assessment() {
     setPhase('submitting');
     setSubmitting(true);
 
-    // Verify all responses are saved in database before proceeding
+    // Verify all responses are saved in database before proceeding using secure RPC
     const { data: savedResponses, error: verifyError } = await supabase
-      .from('assessment_responses')
-      .select('question_id')
-      .eq('session_id', session.id);
+      .rpc('get_assessment_responses_by_token', { session_token: token });
 
     if (verifyError || !savedResponses) {
       toast({
@@ -501,13 +490,13 @@ export default function Assessment() {
       return;
     }
 
-    const savedQuestionIds = new Set(savedResponses.map(r => r.question_id));
+    const savedQuestionIds = new Set(savedResponses.map((r: { question_id: string }) => r.question_id));
     const missingQuestions = questions.filter(q => !savedQuestionIds.has(q.id));
 
     if (missingQuestions.length > 0) {
       // Attempt to save missing responses
       console.log('Missing responses detected, attempting to save:', missingQuestions.length);
-      
+
       for (const q of missingQuestions) {
         const value = responses[q.id];
         if (value !== undefined) {
@@ -515,13 +504,11 @@ export default function Assessment() {
           await saveResponseWithRetry(q.id, dbValue);
         }
       }
-      
+
       // Re-verify
       const { data: recheck } = await supabase
-        .from('assessment_responses')
-        .select('question_id')
-        .eq('session_id', session.id);
-      
+        .rpc('get_assessment_responses_by_token', { session_token: token });
+
       if (!recheck || recheck.length < questions.length) {
         toast({
           title: 'Incomplete Submission',
@@ -662,15 +649,12 @@ export default function Assessment() {
         },
       }).catch((err) => console.error('AI evaluation error:', err));
 
-      // Update session status
-      const { error: sessionError } = await supabase
-        .from('assessment_sessions')
-        .update({ 
-          status: 'completed', 
-          interview_status: 'completed',
-          completed_at: new Date().toISOString() 
-        })
-        .eq('id', session.id);
+      // Update session status using secure RPC function
+      const { error: sessionError } = await supabase.rpc('update_assessment_session', {
+        session_token: token,
+        new_status: 'completed',
+        new_completed_at: new Date().toISOString(),
+      });
 
       if (sessionError) throw sessionError;
 

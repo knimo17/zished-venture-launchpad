@@ -89,12 +89,11 @@ export default function WeeklyReportForm() {
     }
 
     try {
-      // Fetch session
-      const { data: sessionData, error: sessionError } = await supabase
-        .from("weekly_report_sessions")
-        .select("*")
-        .eq("token", token)
-        .single();
+      // Fetch session using secure RPC function
+      const { data: sessionRows, error: sessionError } = await supabase
+        .rpc("get_weekly_report_session_by_token", { session_token: token });
+
+      const sessionData = sessionRows?.[0] || null;
 
       if (sessionError || !sessionData) {
         toast({
@@ -180,8 +179,8 @@ export default function WeeklyReportForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!session || !weekEnding) {
+
+    if (!session || !weekEnding || !token) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -193,73 +192,56 @@ export default function WeeklyReportForm() {
     setSubmitting(true);
 
     try {
-      // Insert report
-      const { data: report, error: reportError } = await supabase
-        .from("weekly_reports")
-        .insert({
-          session_id: session.id,
-          operator_name: session.operator_name,
-          operator_email: session.operator_email,
-          week_ending: format(weekEnding, "yyyy-MM-dd"),
-          assigned_businesses: assignedBusinesses,
-          leadership_role: leadershipRole,
-          strategy_changed: strategyChanged || false,
-          strategy_change_details: strategyChanged ? strategyChangeDetails : null,
-          problem_definition: problemDefinition,
-          problem_changed: problemChanged || false,
-          problem_change_details: problemChanged ? problemChangeDetails : null,
-          solution_description: solutionDescription,
-          personal_execution: personalExecution,
-          approach_viability: approachViability,
-          no_action_reason: noActionReason || null,
-          active_users: activeUsers || null,
-          revenue_ghs: revenueGhs ? parseFloat(revenueGhs) : null,
-          costs_ghs: costsGhs ? parseFloat(costsGhs) : null,
-          leads_partnerships: leadsPartnerships || null,
-          qualitative_traction: qualitativeTraction || null,
-          used_ai_tools: usedAiTools || false,
-          ai_tools_details: usedAiTools ? JSON.parse(JSON.stringify(aiToolsDetails)) : [],
-          key_insight: keyInsight,
-          challenges_risks: challengesRisks,
-          biggest_blocker: biggestBlocker,
-          key_decisions: keyDecisions,
-          trade_offs_evaluated: tradeOffsEvaluated,
-          decisions_owned_escalated: decisionsOwnedEscalated,
-          delayed_decisions: delayedDecisions || null,
-          unconstrained_decision: unconstrainedDecision,
-          talent_capability_gaps: talentCapabilityGaps,
-          capital_needed_ghs: capitalNeededGhs ? parseFloat(capitalNeededGhs) : null,
-          capital_use: capitalUse || null,
-          next_week_priorities: nextWeekPriorities,
-          support_needed: supportNeeded,
-        } as any)
-        .select()
-        .single();
+      // Insert report using secure RPC function (also updates session status)
+      const { data: reportId, error: reportError } = await supabase.rpc("save_weekly_report", {
+        session_token: token,
+        p_week_ending: format(weekEnding, "yyyy-MM-dd"),
+        p_assigned_businesses: assignedBusinesses,
+        p_leadership_role: leadershipRole,
+        p_strategy_changed: strategyChanged || false,
+        p_strategy_change_details: strategyChanged ? strategyChangeDetails : null,
+        p_problem_definition: problemDefinition,
+        p_problem_changed: problemChanged || false,
+        p_problem_change_details: problemChanged ? problemChangeDetails : null,
+        p_solution_description: solutionDescription,
+        p_personal_execution: personalExecution,
+        p_approach_viability: approachViability,
+        p_no_action_reason: noActionReason || null,
+        p_active_users: activeUsers || null,
+        p_revenue_ghs: revenueGhs ? parseFloat(revenueGhs) : null,
+        p_costs_ghs: costsGhs ? parseFloat(costsGhs) : null,
+        p_leads_partnerships: leadsPartnerships || null,
+        p_qualitative_traction: qualitativeTraction || null,
+        p_used_ai_tools: usedAiTools || false,
+        p_ai_tools_details: usedAiTools ? JSON.parse(JSON.stringify(aiToolsDetails)) : [],
+        p_key_insight: keyInsight,
+        p_challenges_risks: challengesRisks,
+        p_biggest_blocker: biggestBlocker,
+        p_key_decisions: keyDecisions,
+        p_trade_offs_evaluated: tradeOffsEvaluated,
+        p_decisions_owned_escalated: decisionsOwnedEscalated,
+        p_delayed_decisions: delayedDecisions || null,
+        p_unconstrained_decision: unconstrainedDecision,
+        p_talent_capability_gaps: talentCapabilityGaps,
+        p_capital_needed_ghs: capitalNeededGhs ? parseFloat(capitalNeededGhs) : null,
+        p_capital_use: capitalUse || null,
+        p_next_week_priorities: nextWeekPriorities,
+        p_support_needed: supportNeeded,
+      });
 
       if (reportError) throw reportError;
 
-      // Insert activities
+      // Insert activities using secure RPC function
       const validActivities = activities.filter(a => a.action_taken.trim());
-      if (validActivities.length > 0) {
-        const { error: activitiesError } = await supabase
-          .from("weekly_report_activities")
-          .insert(
-            validActivities.map(a => ({
-              report_id: report.id,
-              action_taken: a.action_taken,
-              outcome_insight: a.outcome_insight,
-              status: a.status,
-            }))
-          );
+      if (validActivities.length > 0 && reportId) {
+        const { error: activitiesError } = await supabase.rpc("save_weekly_report_activities", {
+          session_token: token,
+          p_report_id: reportId,
+          p_activities: JSON.parse(JSON.stringify(validActivities)),
+        });
 
         if (activitiesError) throw activitiesError;
       }
-
-      // Update session status
-      await supabase
-        .from("weekly_report_sessions")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", session.id);
 
       toast({
         title: "Report Submitted",
