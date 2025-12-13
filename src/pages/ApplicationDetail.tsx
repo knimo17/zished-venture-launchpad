@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle, Sparkles, RefreshCw, Mail } from 'lucide-react';
 import { AssessmentResults } from '@/components/AssessmentResults';
 import { VentureMatchesSection, VentureMatch } from '@/components/VentureMatchesSection';
 import { AIEvaluationSection } from '@/components/AIEvaluationSection';
@@ -132,6 +132,7 @@ export default function ApplicationDetail() {
   const [sendingAssessment, setSendingAssessment] = useState(false);
   const [processingStuckAssessment, setProcessingStuckAssessment] = useState(false);
   const [stuckResponseCount, setStuckResponseCount] = useState<number | null>(null);
+  const [sendingConfirmation, setSendingConfirmation] = useState(false);
   
   // AI data states
   const [aiEvaluation, setAiEvaluation] = useState<AIEvaluation | null>(null);
@@ -615,6 +616,36 @@ export default function ApplicationDetail() {
     }
   };
 
+  const sendConfirmationEmail = async () => {
+    if (!application) return;
+
+    setSendingConfirmation(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-assessment-confirmation', {
+        body: { 
+          applicantName: application.name,
+          applicantEmail: application.email 
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Confirmation Email Sent',
+        description: `Apology and confirmation email sent to ${application.email}`,
+      });
+    } catch (error: unknown) {
+      console.error('Error sending confirmation email:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send confirmation email',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingConfirmation(false);
+    }
+  };
+
   const getAssessmentStatusBadge = () => {
     if (!assessmentSession) return null;
 
@@ -864,6 +895,24 @@ export default function ApplicationDetail() {
                         {processingStuckAssessment ? 'Processing...' : 'Process & Complete'}
                       </Button>
                     </div>
+                  </div>
+                )}
+
+                {/* Send confirmation email button for completed assessments */}
+                {assessmentSession.status === 'completed' && (
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Send an apology and confirmation email to the applicant
+                    </p>
+                    <Button 
+                      onClick={sendConfirmationEmail} 
+                      disabled={sendingConfirmation}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      {sendingConfirmation ? 'Sending...' : 'Send Confirmation Email'}
+                    </Button>
                   </div>
                 )}
               </div>
