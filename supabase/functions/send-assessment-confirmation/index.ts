@@ -26,6 +26,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "verigo54 <admin@verigo54.com>",
       to: [applicantEmail],
+      bcc: ["kayirebi@gmail.com"],
       subject: "Your Assessment Has Been Received - verigo54",
       html: `
         <!DOCTYPE html>
