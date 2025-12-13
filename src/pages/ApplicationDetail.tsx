@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Save, Send, Clock, CheckCircle, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { AssessmentResults } from '@/components/AssessmentResults';
 import { VentureMatchesSection, VentureMatch } from '@/components/VentureMatchesSection';
 import { AIEvaluationSection } from '@/components/AIEvaluationSection';
 import { AIVentureAnalysisCard } from '@/components/AIVentureAnalysisCard';
 import { AIInterviewResponsesSection } from '@/components/AIInterviewResponsesSection';
+import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
+import { calculateAllVentureMatches, VentureProfile, AssessmentData, VentureMatchResult } from '@/lib/ventureMatching';
+import { Json } from '@/integrations/supabase/types';
 import {
   Select,
   SelectContent,
@@ -127,6 +130,8 @@ export default function ApplicationDetail() {
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResultData | null>(null);
   const [ventureMatches, setVentureMatches] = useState<VentureMatch[]>([]);
   const [sendingAssessment, setSendingAssessment] = useState(false);
+  const [processingStuckAssessment, setProcessingStuckAssessment] = useState(false);
+  const [stuckResponseCount, setStuckResponseCount] = useState<number | null>(null);
   
   // AI data states
   const [aiEvaluation, setAiEvaluation] = useState<AIEvaluation | null>(null);
@@ -187,6 +192,20 @@ export default function ApplicationDetail() {
 
       if (sessionData) {
         setAssessmentSession(sessionData);
+
+        // Check for stuck assessments (in_progress with all responses)
+        if (sessionData.status === 'in_progress') {
+          const { count } = await supabase
+            .from('assessment_responses')
+            .select('*', { count: 'exact', head: true })
+            .eq('session_id', sessionData.id);
+          
+          if (count && count >= 70) {
+            setStuckResponseCount(count);
+          } else {
+            setStuckResponseCount(null);
+          }
+        }
 
         // If completed, fetch results and venture matches
         if (sessionData.status === 'completed') {
@@ -293,6 +312,196 @@ export default function ApplicationDetail() {
       }
     } catch (error) {
       console.error('Error fetching assessment data:', error);
+    }
+  };
+
+  // Process stuck assessment that has all responses but no results
+  const processStuckAssessment = async () => {
+    if (!assessmentSession || !application) return;
+
+    setProcessingStuckAssessment(true);
+    try {
+      // Fetch all responses with question data
+      const { data: responsesWithQuestions, error: fetchError } = await supabase
+        .from('assessment_responses')
+        .select(`
+          question_id,
+          response,
+          assessment_questions (
+            id,
+            question_number,
+            dimension,
+            sub_dimension,
+            is_reverse,
+            is_trap,
+            question_type,
+            option_mappings
+          )
+        `)
+        .eq('session_id', assessmentSession.id);
+
+      if (fetchError || !responsesWithQuestions) {
+        throw new Error('Failed to fetch assessment responses');
+      }
+
+      // Prepare responses for scoring
+      const responsesForScoring: AssessmentResponse[] = responsesWithQuestions.map((r) => {
+        const q = r.assessment_questions as {
+          id: string;
+          question_number: number;
+          dimension: string;
+          sub_dimension: string | null;
+          is_reverse: boolean;
+          is_trap: boolean;
+          question_type: string;
+          option_mappings: Record<string, Record<string, number>> | null;
+        };
+        return {
+          question_id: r.question_id,
+          question_number: q.question_number,
+          response: r.response,
+          dimension: q.dimension,
+          sub_dimension: q.sub_dimension || undefined,
+          is_reverse: q.is_reverse,
+          is_trap: q.is_trap,
+          question_type: q.question_type as 'likert' | 'forced_choice' | 'scenario',
+          option_mappings: q.option_mappings || undefined,
+        };
+      });
+
+      // Calculate results
+      const results = calculateAssessmentResults(responsesForScoring, application.name);
+
+      // Save results
+      const { data: resultData, error: resultsError } = await supabase
+        .from('assessment_results')
+        .insert({
+          session_id: assessmentSession.id,
+          dimension_scores: results.dimensionScores as unknown as Json,
+          venture_fit_scores: results.ventureFitScores as unknown as Json,
+          team_compatibility_scores: results.teamCompatibilityScores as unknown as Json,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
+          confidence_level: results.confidenceLevel,
+          summary: results.summary,
+          strengths: results.strengths,
+          weaknesses: results.weaknesses,
+          weakness_summary: results.weaknessSummary,
+        })
+        .select()
+        .single();
+
+      if (resultsError) throw resultsError;
+
+      // Fetch ventures and calculate matches
+      const { data: ventures } = await supabase
+        .from('ventures')
+        .select('*')
+        .eq('is_active', true);
+
+      let ventureMatchResults: VentureMatchResult[] = [];
+      if (ventures && ventures.length > 0 && resultData) {
+        const assessmentData: AssessmentData = {
+          dimensionScores: results.dimensionScores,
+          ventureFitScores: results.ventureFitScores,
+          teamCompatibilityScores: results.teamCompatibilityScores,
+          primaryFounderType: results.primaryFounderType,
+          secondaryFounderType: results.secondaryFounderType,
+        };
+
+        ventureMatchResults = calculateAllVentureMatches(
+          assessmentData,
+          ventures as VentureProfile[]
+        );
+
+        // Save all venture matches
+        const matchInserts = ventureMatchResults.map((match) => ({
+          assessment_result_id: resultData.id,
+          venture_id: match.ventureId,
+          overall_score: match.overallScore,
+          operator_type_score: match.founderTypeScore,
+          dimension_score: match.dimensionScore,
+          compatibility_score: match.compatibilityScore,
+          match_reasons: match.matchReasons,
+          concerns: match.concerns,
+          suggested_role: match.suggestedRole,
+        }));
+
+        await supabase.from('venture_matches').insert(matchInserts);
+      }
+
+      // Generate AI interview questions for admins (fire and forget)
+      const ventureMatchesForAI = ventureMatchResults.slice(0, 3).map((m) => {
+        const venture = ventures?.find((v) => v.id === m.ventureId);
+        return {
+          venture_id: m.ventureId,
+          venture_name: venture?.name || 'Unknown',
+          industry: venture?.industry || 'Unknown',
+          overall_score: m.overallScore,
+          match_reasons: m.matchReasons,
+          concerns: m.concerns,
+        };
+      });
+
+      // Generate AI interview questions in background
+      supabase.functions.invoke('generate-interview-questions', {
+        body: {
+          assessment_result_id: resultData.id,
+          applicant_name: application.name,
+          dimension_scores: results.dimensionScores,
+          venture_fit_scores: results.ventureFitScores,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
+          confidence_level: results.confidenceLevel,
+          venture_matches: ventureMatchesForAI,
+          trap_analysis: results.trapAnalysis,
+        },
+      }).catch((err) => console.error('AI interview questions error:', err));
+
+      // Generate AI evaluation in background
+      supabase.functions.invoke('generate-ai-evaluation', {
+        body: {
+          assessment_result_id: resultData.id,
+          applicant_name: application.name,
+          dimension_scores: results.dimensionScores,
+          venture_fit_scores: results.ventureFitScores,
+          team_compatibility_scores: results.teamCompatibilityScores,
+          primary_operator_type: results.primaryFounderType,
+          secondary_operator_type: results.secondaryFounderType,
+          confidence_level: results.confidenceLevel,
+          venture_matches: ventureMatchesForAI,
+          trap_analysis: results.trapAnalysis,
+          style_traits: results.styleTraits,
+        },
+      }).catch((err) => console.error('AI evaluation error:', err));
+
+      // Update session status
+      await supabase
+        .from('assessment_sessions')
+        .update({ 
+          status: 'completed', 
+          interview_status: 'completed',
+          completed_at: new Date().toISOString() 
+        })
+        .eq('id', assessmentSession.id);
+
+      toast({
+        title: 'Assessment Processed',
+        description: 'Stuck assessment has been successfully processed and completed.',
+      });
+
+      // Refresh data
+      fetchAssessmentData();
+      setStuckResponseCount(null);
+    } catch (error) {
+      console.error('Error processing stuck assessment:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to process assessment',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingStuckAssessment(false);
     }
   };
 
@@ -624,7 +833,7 @@ export default function ApplicationDetail() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>Sent: {new Date(assessmentSession.sent_at).toLocaleString()}</span>
                   {assessmentSession.started_at && (
@@ -634,6 +843,29 @@ export default function ApplicationDetail() {
                     <span>Completed: {new Date(assessmentSession.completed_at).toLocaleString()}</span>
                   )}
                 </div>
+                
+                {/* Show stuck assessment warning */}
+                {stuckResponseCount !== null && stuckResponseCount >= 70 && assessmentSession.status === 'in_progress' && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <AlertCircle className="h-5 w-5" />
+                        <span className="font-medium">
+                          Stuck Assessment Detected: {stuckResponseCount}/70 responses saved but not submitted
+                        </span>
+                      </div>
+                      <Button 
+                        onClick={processStuckAssessment} 
+                        disabled={processingStuckAssessment}
+                        variant="outline"
+                        className="border-amber-500 text-amber-600 hover:bg-amber-500/10"
+                      >
+                        <RefreshCw className={`mr-2 h-4 w-4 ${processingStuckAssessment ? 'animate-spin' : ''}`} />
+                        {processingStuckAssessment ? 'Processing...' : 'Process & Complete'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
