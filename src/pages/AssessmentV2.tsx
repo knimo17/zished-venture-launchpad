@@ -435,16 +435,37 @@ export default function AssessmentV2() {
             Previous
           </Button>
 
-          {allAnswered ? (
+          <span className="text-sm text-muted-foreground">
+            Question {currentIndex + 1} of {orderedQuestions.length}
+          </span>
+
+          {currentIndex < orderedQuestions.length - 1 ? (
+            <Button
+              onClick={() => setCurrentIndex((i) => i + 1)}
+              disabled={saving}
+            >
+              Next
+            </Button>
+          ) : allAnswered ? (
             <Button onClick={handleSubmit} disabled={saving}>
               Submit Assessment
             </Button>
           ) : (
             <Button
-              onClick={() => setCurrentIndex((i) => Math.min(orderedQuestions.length - 1, i + 1))}
-              disabled={currentIndex >= orderedQuestions.length - 1 || saving}
+              variant="secondary"
+              onClick={() => {
+                // Find first unanswered question
+                const unansweredIdx = orderedQuestions.findIndex(q => responses[q.id] === undefined);
+                if (unansweredIdx >= 0) {
+                  setCurrentIndex(unansweredIdx);
+                  toast({
+                    title: 'Question skipped',
+                    description: `Please answer question ${unansweredIdx + 1}`,
+                  });
+                }
+              }}
             >
-              Next
+              Find Unanswered ({orderedQuestions.length - answeredCount} left)
             </Button>
           )}
         </div>
