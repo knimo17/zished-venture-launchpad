@@ -19,7 +19,7 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import InternshipsPage from "./pages/InternshipsPage";
 import ManageInternships from "./pages/ManageInternships";
 import ManageSiteContent from "./pages/ManageSiteContent";
-import Assessment from "./pages/Assessment";
+import AssessmentV2 from "./pages/AssessmentV2";
 import AssessmentThankYou from "./pages/AssessmentThankYou";
 import WeeklyReportForm from "./pages/WeeklyReportForm";
 import WeeklyReportThankYou from "./pages/WeeklyReportThankYou";
@@ -47,7 +47,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             {/* Public assessment routes (no navigation/banner) */}
-            <Route path="/assessment/:token" element={<Assessment />} />
+            <Route path="/assessment/:token" element={<AssessmentV2 />} />
             <Route path="/assessment-thank-you" element={<AssessmentThankYou />} />
             
             {/* Public weekly report routes (no navigation/banner) */}
