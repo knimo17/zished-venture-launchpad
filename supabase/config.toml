@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-assessment-confirmation]
 verify_jwt = false
+
+[functions.submit-assessment]
+verify_jwt = false

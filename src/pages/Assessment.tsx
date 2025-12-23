@@ -570,27 +570,6 @@ export default function Assessment() {
       const dbVentureFitScores = results.ventureFitScores;
       const dbTeamCompatibilityScores = results.teamCompatibilityScores;
 
-      // Save results
-      const { data: resultData, error: resultsError } = await supabase
-        .from('assessment_results')
-        .insert({
-          session_id: session.id,
-          dimension_scores: dbDimensionScores as unknown as Json,
-          venture_fit_scores: dbVentureFitScores as unknown as Json,
-          team_compatibility_scores: dbTeamCompatibilityScores as unknown as Json,
-          primary_operator_type: results.primaryFounderType,
-          secondary_operator_type: results.secondaryFounderType,
-          confidence_level: results.confidenceLevel,
-          summary: results.summary,
-          strengths: results.strengths,
-          weaknesses: results.weaknesses,
-          weakness_summary: results.weaknessSummary,
-        })
-        .select()
-        .single();
-
-      if (resultsError) throw resultsError;
-
       // Fetch ventures and calculate matches
       const { data: ventures } = await supabase
         .from('ventures')
@@ -598,7 +577,7 @@ export default function Assessment() {
         .eq('is_active', true);
 
       let ventureMatches: VentureMatchResult[] = [];
-      if (ventures && ventures.length > 0 && resultData) {
+      if (ventures && ventures.length > 0) {
         const assessmentData: AssessmentData = {
           dimensionScores: results.dimensionScores,
           ventureFitScores: results.ventureFitScores,
@@ -611,22 +590,46 @@ export default function Assessment() {
           assessmentData,
           ventures as VentureProfile[]
         );
-
-        // Save all venture matches
-        const matchInserts = ventureMatches.map((match) => ({
-          assessment_result_id: resultData.id,
-          venture_id: match.ventureId,
-          overall_score: match.overallScore,
-          operator_type_score: match.founderTypeScore,
-          dimension_score: match.dimensionScore,
-          compatibility_score: match.compatibilityScore,
-          match_reasons: match.matchReasons,
-          concerns: match.concerns,
-          suggested_role: match.suggestedRole,
-        }));
-
-        await supabase.from('venture_matches').insert(matchInserts);
       }
+
+      // Prepare venture matches for DB insert (no assessment_result_id here; backend attaches it)
+      const ventureMatchInserts = ventureMatches.map((match) => ({
+        venture_id: match.ventureId,
+        overall_score: match.overallScore,
+        operator_type_score: match.founderTypeScore,
+        dimension_score: match.dimensionScore,
+        compatibility_score: match.compatibilityScore,
+        match_reasons: match.matchReasons,
+        concerns: match.concerns,
+        suggested_role: match.suggestedRole,
+      }));
+
+      // Save results + venture matches + mark session completed via backend (idempotent)
+      const { data: submitData, error: submitError } = await supabase.functions.invoke('submit-assessment', {
+        body: {
+          token,
+          assessment_result: {
+            dimension_scores: dbDimensionScores as unknown as Json,
+            venture_fit_scores: dbVentureFitScores as unknown as Json,
+            team_compatibility_scores: dbTeamCompatibilityScores as unknown as Json,
+            primary_operator_type: results.primaryFounderType,
+            secondary_operator_type: results.secondaryFounderType,
+            confidence_level: results.confidenceLevel,
+            summary: results.summary,
+            strengths: results.strengths,
+            weaknesses: results.weaknesses,
+            weakness_summary: results.weaknessSummary,
+          },
+          venture_matches: ventureMatchInserts,
+        },
+      });
+
+      if (submitError || !submitData?.assessment_result_id) {
+        const msg = submitError?.message || 'Failed to save assessment results.';
+        throw new Error(msg);
+      }
+
+      const assessmentResultId: string = submitData.assessment_result_id;
 
       // Generate AI interview questions for admins (fire and forget)
       const ventureMatchesForAI = ventureMatches.slice(0, 3).map((m) => {
@@ -644,7 +647,7 @@ export default function Assessment() {
       // Generate AI interview questions in background (for admin use only)
       supabase.functions.invoke('generate-interview-questions', {
         body: {
-          assessment_result_id: resultData.id,
+          assessment_result_id: assessmentResultId,
           applicant_name: application.name,
           dimension_scores: results.dimensionScores,
           venture_fit_scores: results.ventureFitScores,
@@ -659,7 +662,7 @@ export default function Assessment() {
       // Generate AI evaluation in background
       supabase.functions.invoke('generate-ai-evaluation', {
         body: {
-          assessment_result_id: resultData.id,
+          assessment_result_id: assessmentResultId,
           applicant_name: application.name,
           dimension_scores: results.dimensionScores,
           venture_fit_scores: results.ventureFitScores,
@@ -672,18 +675,6 @@ export default function Assessment() {
           style_traits: results.styleTraits,
         },
       }).catch((err) => console.error('AI evaluation error:', err));
-
-      // Update session status
-      const { error: sessionError } = await supabase
-        .from('assessment_sessions')
-        .update({ 
-          status: 'completed', 
-          interview_status: 'completed',
-          completed_at: new Date().toISOString() 
-        })
-        .eq('id', session.id);
-
-      if (sessionError) throw sessionError;
 
       navigate('/assessment-thank-you');
     } catch (error: unknown) {
