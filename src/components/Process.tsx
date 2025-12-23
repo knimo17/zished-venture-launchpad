@@ -3,22 +3,22 @@ export const Process = () => {
     {
       number: "01",
       title: "Application",
-      description: "Send application + answers to 6 questions"
+      description: "Submit your application with answers to 6 questions"
     },
     {
       number: "02",
-      title: "Task Challenge",
-      description: "Solve a real-world operational problem"
+      title: "Assessment",
+      description: "Complete a behavioral and skills assessment"
     },
     {
       number: "03",
-      title: "Interview",
-      description: "Interview + working session with the team"
+      title: "Conversation",
+      description: "Meet with a member of our team"
     },
     {
       number: "04",
       title: "Offer",
-      description: "Offer + onboarding to your first venture"
+      description: "Receive your offer and onboard to your first venture"
     }
   ];
 
