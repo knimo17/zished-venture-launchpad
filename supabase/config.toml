@@ -1,5 +1,8 @@
 project_id = "fezjiutlszkrvdubfvnc"
 
+[functions.submit-assessment-v2]
+verify_jwt = false
+
 [functions.send-application-notification]
 verify_jwt = false
 
