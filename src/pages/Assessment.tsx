@@ -458,6 +458,12 @@ export default function Assessment() {
 
   // Complete assessment and process results
   const completeAssessment = async () => {
+    // Prevent double submission
+    if (submitting) {
+      console.log('Already submitting, ignoring duplicate call');
+      return;
+    }
+
     if (!session || !application) {
       console.log('Missing session or application:', { session: !!session, application: !!application });
       toast({
@@ -481,60 +487,62 @@ export default function Assessment() {
       return;
     }
 
+    console.log('Starting assessment submission for session:', session.id);
     setPhase('submitting');
     setSubmitting(true);
 
-    // Verify all responses are saved in database before proceeding
-    const { data: savedResponses, error: verifyError } = await supabase
-      .from('assessment_responses')
-      .select('question_id')
-      .eq('session_id', session.id);
-
-    if (verifyError || !savedResponses) {
-      toast({
-        title: 'Verification Error',
-        description: 'Failed to verify responses. Please try again.',
-        variant: 'destructive',
-      });
-      setPhase('ready_to_submit');
-      setSubmitting(false);
-      return;
-    }
-
-    const savedQuestionIds = new Set(savedResponses.map(r => r.question_id));
-    const missingQuestions = questions.filter(q => !savedQuestionIds.has(q.id));
-
-    if (missingQuestions.length > 0) {
-      // Attempt to save missing responses
-      console.log('Missing responses detected, attempting to save:', missingQuestions.length);
-      
-      for (const q of missingQuestions) {
-        const value = responses[q.id];
-        if (value !== undefined) {
-          const dbValue = typeof value === 'string' ? (value === 'A' ? 1 : 2) : value;
-          await saveResponseWithRetry(q.id, dbValue);
-        }
-      }
-      
-      // Re-verify
-      const { data: recheck } = await supabase
+    try {
+      // Verify all responses are saved in database before proceeding
+      const { data: savedResponses, error: verifyError } = await supabase
         .from('assessment_responses')
         .select('question_id')
         .eq('session_id', session.id);
-      
-      if (!recheck || recheck.length < questions.length) {
+
+      if (verifyError || !savedResponses) {
+        console.error('Verification error:', verifyError);
         toast({
-          title: 'Incomplete Submission',
-          description: 'Some responses could not be saved. Please check your connection and try again.',
+          title: 'Verification Error',
+          description: 'Failed to verify responses. Please try again.',
           variant: 'destructive',
         });
         setPhase('ready_to_submit');
         setSubmitting(false);
         return;
       }
-    }
 
-    try {
+      const savedQuestionIds = new Set(savedResponses.map(r => r.question_id));
+      const missingQuestions = questions.filter(q => !savedQuestionIds.has(q.id));
+
+      if (missingQuestions.length > 0) {
+        // Attempt to save missing responses
+        console.log('Missing responses detected, attempting to save:', missingQuestions.length);
+        
+        for (const q of missingQuestions) {
+          const value = responses[q.id];
+          if (value !== undefined) {
+            const dbValue = typeof value === 'string' ? (value === 'A' ? 1 : 2) : value;
+            await saveResponseWithRetry(q.id, dbValue);
+          }
+        }
+        
+        // Re-verify
+        const { data: recheck } = await supabase
+          .from('assessment_responses')
+          .select('question_id')
+          .eq('session_id', session.id);
+        
+        if (!recheck || recheck.length < questions.length) {
+          toast({
+            title: 'Incomplete Submission',
+            description: 'Some responses could not be saved. Please check your connection and try again.',
+            variant: 'destructive',
+          });
+          setPhase('ready_to_submit');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // Prepare responses with question data for scoring (use original question order for scoring)
       const responsesWithData: AssessmentResponse[] = questions.map((q) => {
         const responseValue = responses[q.id];
@@ -677,13 +685,16 @@ export default function Assessment() {
       navigate('/assessment-thank-you');
     } catch (error: unknown) {
       console.error('Error completing assessment:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error details:', errorMessage);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to submit assessment. Please try again.',
+        title: 'Submission Error',
+        description: 'Failed to submit assessment. Please check your connection and try again. If the problem persists, refresh the page.',
         variant: 'destructive',
       });
       setSubmitting(false);
-      // Stay in ready_to_submit so user can retry, not assessment phase
+      // Stay in ready_to_submit so user can retry
       setPhase('ready_to_submit');
     }
   };
@@ -1005,9 +1016,15 @@ export default function Assessment() {
           <div className="flex justify-center">
             <Button
               onClick={completeAssessment}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                if (!submitting) {
+                  completeAssessment();
+                }
+              }}
               disabled={submitting}
               size="lg"
-              className="px-8"
+              className="px-8 min-h-[56px] touch-manipulation"
             >
               {submitting ? (
                 <>
