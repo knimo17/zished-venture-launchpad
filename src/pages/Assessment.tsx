@@ -286,15 +286,18 @@ export default function Assessment() {
         setPhase('assessment');
       }
 
-      // Get application name
+      // Get application name (use maybeSingle since RLS may block access)
       const { data: appData } = await supabase
         .from('applications')
         .select('name')
         .eq('id', sessionData.application_id)
-        .single();
+        .maybeSingle();
 
       if (appData) {
         setApplication(appData);
+      } else {
+        // Fallback for when RLS blocks the application query
+        setApplication({ name: 'Applicant' });
       }
 
       // Load questions
