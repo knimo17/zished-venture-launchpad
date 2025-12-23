@@ -13,7 +13,18 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Briefcase, FileText, ClipboardList } from 'lucide-react';
+import { LogOut, Briefcase, FileText, ClipboardList, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Application {
   id: string;
@@ -32,6 +43,7 @@ interface Application {
 export default function AdminDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -69,6 +81,32 @@ export default function AdminDashboard() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setApplications(applications.filter(app => app.id !== id));
+      toast({
+        title: 'Application deleted',
+        description: 'The application has been permanently deleted.',
+      });
+    } catch (error: unknown) {
+      toast({
+        title: 'Error deleting application',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -168,13 +206,44 @@ export default function AdminDashboard() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      onClick={() => navigate(`/admin/application/${app.id}`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      View Details
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => navigate(`/admin/application/${app.id}`)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        View Details
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            disabled={deletingId === app.id}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Application</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete the application from {app.name}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(app.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
