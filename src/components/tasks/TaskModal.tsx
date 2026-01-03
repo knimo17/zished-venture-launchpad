@@ -182,6 +182,8 @@ export default function TaskModal({
 
       let taskId = task?.id;
 
+      const previousAssignee = task?.assigned_to;
+      
       if (task) {
         const { error } = await supabase
           .from('tasks')
@@ -189,6 +191,18 @@ export default function TaskModal({
           .eq('id', task.id);
 
         if (error) throw error;
+        
+        // Send notification if assignee changed
+        if (formData.assigned_to && formData.assigned_to !== previousAssignee && currentMember) {
+          supabase.functions.invoke('send-task-assignment', {
+            body: {
+              task_id: task.id,
+              assigned_to_id: formData.assigned_to,
+              assigned_by_id: currentMember.id,
+              is_new_task: false,
+            },
+          }).catch(err => console.error('Failed to send assignment email:', err));
+        }
       } else {
         const { data: newTask, error } = await supabase
           .from('tasks')
@@ -201,6 +215,18 @@ export default function TaskModal({
 
         if (error) throw error;
         taskId = newTask.id;
+        
+        // Send notification for new task assignment
+        if (formData.assigned_to && currentMember) {
+          supabase.functions.invoke('send-task-assignment', {
+            body: {
+              task_id: newTask.id,
+              assigned_to_id: formData.assigned_to,
+              assigned_by_id: currentMember.id,
+              is_new_task: true,
+            },
+          }).catch(err => console.error('Failed to send assignment email:', err));
+        }
       }
 
       // Create reminders if due date is set and reminders are enabled
