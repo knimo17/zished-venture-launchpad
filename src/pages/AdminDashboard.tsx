@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Briefcase, FileText, ClipboardList, Trash2 } from 'lucide-react';
+import { LogOut, Briefcase, FileText, ClipboardList, Trash2, Users } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,7 +146,11 @@ export default function AdminDashboard() {
               Total applications: {applications.length}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => navigate('/team/tasks')} variant="outline">
+              <Users className="mr-2 h-4 w-4" />
+              Team
+            </Button>
             <Button onClick={() => navigate('/admin/weekly-reports')} variant="outline">
               <ClipboardList className="mr-2 h-4 w-4" />
               Weekly Reports
