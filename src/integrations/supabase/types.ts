@@ -675,6 +675,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          invite_token: string | null
           is_active: boolean
           name: string
           updated_at: string
@@ -684,6 +685,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          invite_token?: string | null
           is_active?: boolean
           name: string
           updated_at?: string
@@ -693,6 +695,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          invite_token?: string | null
           is_active?: boolean
           name?: string
           updated_at?: string

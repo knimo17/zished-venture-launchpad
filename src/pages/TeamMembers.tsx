@@ -109,13 +109,17 @@ export default function TeamMembers() {
         return;
       }
 
-      // Insert team member with admin's user_id as placeholder
+      // Generate a unique invite token
+      const inviteToken = crypto.randomUUID();
+
+      // Insert team member with invite token (user_id will be set on signup)
       const { data, error } = await supabase
         .from('team_members')
         .insert({
           name: formData.name,
           email: formData.email,
-          user_id: user!.id,
+          user_id: user!.id, // Placeholder - will be replaced on signup
+          invite_token: inviteToken,
           is_active: true,
         })
         .select()
@@ -128,7 +132,7 @@ export default function TeamMembers() {
         body: {
           email: formData.email,
           name: formData.name,
-          team_member_id: data.id,
+          invite_token: inviteToken,
         },
       });
 
