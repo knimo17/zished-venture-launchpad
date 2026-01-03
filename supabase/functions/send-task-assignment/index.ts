@@ -89,6 +89,7 @@ serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
+    const fromAddress = Deno.env.get("RESEND_FROM") || "Task Manager <onboarding@resend.dev>";
 
     const dueDate = task.due_date
       ? new Date(task.due_date).toLocaleDateString("en-US", {
@@ -114,7 +115,7 @@ serve(async (req) => {
     const actionText = is_new_task ? "assigned you a new task" : "reassigned a task to you";
 
     const emailResponse = await resend.emails.send({
-      from: "Task Manager <onboarding@resend.dev>",
+      from: fromAddress,
       to: [assignee.email],
       subject,
       html: `
@@ -126,8 +127,8 @@ serve(async (req) => {
             <h3 style="margin: 0 0 10px 0; color: #333;">${task.title}</h3>
             ${task.description ? `<p style="margin: 0 0 10px 0; color: #666;">${task.description}</p>` : ""}
             <p style="margin: 0; color: #888;">
-              <strong>Priority:</strong> 
-              <span style="color: ${priorityColors[task.priority] || '#888'}; text-transform: capitalize;">
+              <strong>Priority:</strong>
+              <span style="color: ${priorityColors[task.priority] || "#888"}; text-transform: capitalize;">
                 ${task.priority}
               </span>
             </p>
@@ -146,11 +147,23 @@ serve(async (req) => {
       `,
     });
 
+    if (emailResponse.error) {
+      console.error("Resend error sending task assignment email:", emailResponse.error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: emailResponse.error.message,
+          resend: emailResponse.error,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     console.log("Email sent successfully:", emailResponse);
 
     return new Response(
       JSON.stringify({ success: true, emailId: emailResponse.data?.id }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
     console.error("Error in send-task-assignment:", error);
