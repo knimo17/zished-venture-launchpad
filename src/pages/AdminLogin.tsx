@@ -16,41 +16,81 @@ export default function AdminLogin() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, isAdmin, session } = useAuth();
+  const { signIn, signUp, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if user came from a password reset link
+  // Detect password-recovery links and prevent premature redirects
   useEffect(() => {
-    const handleRecoverySession = async () => {
-      // Check URL hash for recovery token (Supabase adds this)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get('type');
-      
-      if (type === 'recovery') {
-        setIsResettingPassword(true);
+    let mounted = true;
+
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const searchParams = new URLSearchParams(window.location.search);
+
+    const type = hashParams.get('type') ?? searchParams.get('type');
+    const error = hashParams.get('error') ?? searchParams.get('error');
+    const errorDescription =
+      hashParams.get('error_description') ?? searchParams.get('error_description');
+
+    if ((error || errorDescription) && mounted) {
+      toast({
+        title: 'Password reset link error',
+        description: decodeURIComponent(errorDescription ?? error ?? 'Invalid or expired link.'),
+        variant: 'destructive',
+      });
+    }
+
+    const init = async () => {
+      // Implicit flow (hash): ...#access_token=...&type=recovery
+      if (type === 'recovery') setIsResettingPassword(true);
+
+      // PKCE flow (query): .../admin?code=...&type=recovery
+      const code = searchParams.get('code');
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError && mounted) {
+          toast({
+            title: 'Password reset failed',
+            description: exchangeError.message,
+            variant: 'destructive',
+          });
+        } else {
+          setIsResettingPassword(true);
+          // Remove the code from the URL so refreshes don't re-run the exchange
+          const url = new URL(window.location.href);
+          url.searchParams.delete('code');
+          window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+        }
       }
+
+      if (mounted) setRecoveryChecked(true);
     };
 
-    handleRecoverySession();
+    void init();
 
-    // Listen for PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsResettingPassword(true);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [toast]);
 
   // Redirect if already admin and not resetting password
   useEffect(() => {
+    if (!recoveryChecked) return;
     if (isAdmin && !isResettingPassword) {
       navigate('/admin/dashboard');
     }
-  }, [isAdmin, isResettingPassword, navigate]);
+  }, [isAdmin, isResettingPassword, navigate, recoveryChecked]);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
