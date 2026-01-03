@@ -25,8 +25,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, ArrowLeft, UserPlus, Mail } from 'lucide-react';
-import { Navigation } from '@/components/Navigation';
-import { Footer } from '@/components/Footer';
 
 interface TeamMember {
   id: string;
@@ -94,37 +92,41 @@ export default function TeamMembers() {
 
     setIsSubmitting(true);
     try {
-      // First, create a user account for this team member
-      const { data: authData, error: authError } = await supabase.auth.admin?.createUser?.({
-        email: formData.email,
-        email_confirm: true,
-        user_metadata: { name: formData.name },
-      });
-
-      // If admin API not available, we'll need to invite them
-      // For now, we'll create the team member entry and they can sign up
-      
       // Check if user already exists
-      const { data: existingUsers } = await supabase
+      const { data: existingUser } = await supabase
         .from('team_members')
         .select('id')
         .eq('email', formData.email)
         .maybeSingle();
 
-      if (existingUsers) {
+      if (existingUser) {
         toast({
           title: 'Error',
           description: 'A team member with this email already exists.',
           variant: 'destructive',
         });
+        setIsSubmitting(false);
         return;
       }
 
-      // For now, we'll create a placeholder - they'll need to sign up
-      // In production, you'd use Supabase auth.admin or send an invite email
+      // Insert team member - they'll link to their user account when they sign up
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          user_id: user!.id, // Placeholder - will be updated when they sign up
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMembers((prev) => [data, ...prev]);
       toast({
-        title: 'Note',
-        description: 'Team member entry created. They will need to sign up with this email to access the system.',
+        title: 'Success',
+        description: 'Team member added successfully.',
       });
 
       setIsModalOpen(false);
@@ -178,115 +180,111 @@ export default function TeamMembers() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <main className="container mx-auto px-4 py-8 pt-24">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/team/tasks')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Team Members</h1>
-              <p className="text-muted-foreground">Manage your team</p>
-            </div>
-          </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Member
+    <main className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/team/tasks')}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Team Members</h1>
+            <p className="text-muted-foreground">Manage your team</p>
+          </div>
         </div>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Add Member
+        </Button>
+      </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead>Active</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.length === 0 ? (
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <p className="text-muted-foreground">No team members yet.</p>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <p className="text-muted-foreground">No team members yet.</p>
+              ) : (
+                members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        {member.email}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={member.is_active ? 'default' : 'secondary'}>
+                        {member.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(member.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={member.is_active}
+                        onCheckedChange={() => toggleMemberStatus(member)}
+                      />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          {member.email}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={member.is_active ? 'default' : 'secondary'}>
-                          {member.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(member.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={member.is_active}
-                          onCheckedChange={() => toggleMemberStatus(member)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Team Member</DialogTitle>
-              <DialogDescription>
-                Add a new team member. They will need to create an account with the same email to access the task system.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Team member's name"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="team@example.com"
-                />
-              </div>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogDescription>
+              Add a new team member. They will need to create an account with the same email to access the task system.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Team member's name"
+              />
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddMember} disabled={isSubmitting}>
-                {isSubmitting ? 'Adding...' : 'Add Member'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </main>
-      <Footer />
-    </div>
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="team@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddMember} disabled={isSubmitting}>
+              {isSubmitting ? 'Adding...' : 'Add Member'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
   );
 }
