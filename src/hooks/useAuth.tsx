@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAdmin: boolean;
+  isTeamMember: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isTeamMember, setIsTeamMember] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,17 +33,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check admin role
         if (session?.user) {
           setTimeout(async () => {
-            const { data } = await supabase
+            const { data: adminData } = await supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', session.user.id)
               .eq('role', 'admin')
               .single();
-            setIsAdmin(!!data);
+            setIsAdmin(!!adminData);
+            
+            const { data: teamData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .eq('role', 'team_member')
+              .single();
+            setIsTeamMember(!!teamData);
+            
             setLoading(false);
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsTeamMember(false);
           setLoading(false);
         }
       }
@@ -54,13 +66,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         setTimeout(async () => {
-          const { data } = await supabase
+          const { data: adminData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
             .eq('role', 'admin')
             .single();
-          setIsAdmin(!!data);
+          setIsAdmin(!!adminData);
+          
+          const { data: teamData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .eq('role', 'team_member')
+            .single();
+          setIsTeamMember(!!teamData);
+          
           setLoading(false);
         }, 0);
       } else {
@@ -96,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isAdmin, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isAdmin, isTeamMember, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
