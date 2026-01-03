@@ -10,7 +10,7 @@ const corsHeaders = {
 interface InviteRequest {
   email: string;
   name: string;
-  team_member_id: string;
+  invite_token: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,10 +28,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, name, team_member_id }: InviteRequest = await req.json();
+    const { email, name, invite_token }: InviteRequest = await req.json();
     console.log("Sending team invite to:", email, "name:", name);
 
-    if (!email || !name || !team_member_id) {
+    if (!email || !name || !invite_token) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -42,8 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = Deno.env.get("RESEND_FROM") || "Team Manager <onboarding@resend.dev>";
     const appUrl = Deno.env.get("APP_URL") || "https://fezjiutlszkrvdubfvnc.lovableproject.com";
 
-    // Create signup link with team member ID for linking after signup
-    const signupUrl = `${appUrl}/team/signup?invite=${team_member_id}&email=${encodeURIComponent(email)}`;
+    // Create signup link with invite token for linking after signup
+    const signupUrl = `${appUrl}/team/signup?token=${invite_token}&email=${encodeURIComponent(email)}`;
 
     const emailResponse = await resend.emails.send({
       from: fromAddress,

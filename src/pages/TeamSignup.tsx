@@ -13,7 +13,7 @@ export default function TeamSignup() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const inviteId = searchParams.get("invite");
+  const inviteToken = searchParams.get("token");
   const emailParam = searchParams.get("email") || "";
 
   const [email, setEmail] = useState(emailParam);
@@ -24,9 +24,11 @@ export default function TeamSignup() {
   const [memberName, setMemberName] = useState("");
   const [isValid, setIsValid] = useState(false);
 
+  const [teamMemberId, setTeamMemberId] = useState<string | null>(null);
+
   useEffect(() => {
     async function validateInvite() {
-      if (!inviteId) {
+      if (!inviteToken) {
         setValidating(false);
         return;
       }
@@ -34,8 +36,8 @@ export default function TeamSignup() {
       try {
         const { data, error } = await supabase
           .from("team_members")
-          .select("id, name, email, user_id")
-          .eq("id", inviteId)
+          .select("id, name, email, invite_token")
+          .eq("invite_token", inviteToken)
           .single();
 
         if (error || !data) {
@@ -48,7 +50,8 @@ export default function TeamSignup() {
           return;
         }
 
-        if (data.user_id) {
+        // If invite_token is null, it means the user has already signed up
+        if (!data.invite_token) {
           toast({
             title: "Already registered",
             description: "This account has already been set up. Please sign in.",
@@ -59,6 +62,7 @@ export default function TeamSignup() {
 
         setMemberName(data.name);
         setEmail(data.email);
+        setTeamMemberId(data.id);
         setIsValid(true);
       } catch (err) {
         console.error("Error validating invite:", err);
@@ -68,7 +72,7 @@ export default function TeamSignup() {
     }
 
     validateInvite();
-  }, [inviteId, navigate, toast]);
+  }, [inviteToken, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,11 +115,11 @@ export default function TeamSignup() {
         throw new Error("Failed to create account");
       }
 
-      // Link the user to the team member record
+      // Link the user to the team member record and clear invite token
       const { error: updateError } = await supabase
         .from("team_members")
-        .update({ user_id: authData.user.id })
-        .eq("id", inviteId);
+        .update({ user_id: authData.user.id, invite_token: null })
+        .eq("id", teamMemberId);
 
       if (updateError) {
         console.error("Error linking team member:", updateError);
