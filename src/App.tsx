@@ -25,6 +25,9 @@ import WeeklyReportForm from "./pages/WeeklyReportForm";
 import WeeklyReportThankYou from "./pages/WeeklyReportThankYou";
 import AdminWeeklyReports from "./pages/AdminWeeklyReports";
 import WeeklyReportDetail from "./pages/WeeklyReportDetail";
+import TeamTasks from "./pages/TeamTasks";
+import TeamLists from "./pages/TeamLists";
+import TeamMembers from "./pages/TeamMembers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -111,13 +114,25 @@ const App = () => (
                 path="/admin/weekly-report/:id" 
                 element={
                   <ProtectedRoute>
-                    <WeeklyReportDetail />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
+                <WeeklyReportDetail />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Team task routes */}
+          <Route path="/team/tasks" element={<TeamTasks />} />
+          <Route path="/team/lists" element={<TeamLists />} />
+          <Route 
+            path="/team/members" 
+            element={
+              <ProtectedRoute>
+                <TeamMembers />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
         </BrowserRouter>
