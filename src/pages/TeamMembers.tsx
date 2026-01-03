@@ -109,13 +109,13 @@ export default function TeamMembers() {
         return;
       }
 
-      // Insert team member - they'll link to their user account when they sign up
+      // Insert team member with admin's user_id as placeholder
       const { data, error } = await supabase
         .from('team_members')
         .insert({
           name: formData.name,
           email: formData.email,
-          user_id: user!.id, // Placeholder - will be updated when they sign up
+          user_id: user!.id,
           is_active: true,
         })
         .select()
@@ -123,12 +123,30 @@ export default function TeamMembers() {
 
       if (error) throw error;
 
-      setMembers((prev) => [data, ...prev]);
-      toast({
-        title: 'Success',
-        description: 'Team member added successfully.',
+      // Send invite email
+      const { error: inviteError } = await supabase.functions.invoke('send-team-invite', {
+        body: {
+          email: formData.email,
+          name: formData.name,
+          team_member_id: data.id,
+        },
       });
 
+      if (inviteError) {
+        console.error('Failed to send invite email:', inviteError);
+        toast({
+          title: 'Member added',
+          description: 'Team member added but invite email failed to send.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Invite sent!',
+          description: `An invite email has been sent to ${formData.email}`,
+        });
+      }
+
+      setMembers((prev) => [data, ...prev]);
       setIsModalOpen(false);
       setFormData({ name: '', email: '' });
     } catch (error) {

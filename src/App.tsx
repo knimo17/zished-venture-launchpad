@@ -28,6 +28,7 @@ import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 import TeamTasks from "./pages/TeamTasks";
 import TeamLists from "./pages/TeamLists";
 import TeamMembers from "./pages/TeamMembers";
+import TeamSignup from "./pages/TeamSignup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,9 @@ const App = () => (
             {/* Public weekly report routes (no navigation/banner) */}
             <Route path="/weekly-report/:token" element={<WeeklyReportForm />} />
             <Route path="/weekly-report-thank-you" element={<WeeklyReportThankYou />} />
+            
+            {/* Team signup route (no navigation/banner) */}
+            <Route path="/team/signup" element={<TeamSignup />} />
             
             {/* Main app routes with navigation */}
             <Route element={<MainLayout />}>
