@@ -83,13 +83,9 @@ serve(async (req) => {
       throw new Error("Assigner not found");
     }
 
-    // Don't send email if assigning to self
+    // Note: we DO send emails for self-assignment too (useful for testing / confirmations).
     if (assigned_to_id === assigned_by_id) {
-      console.log("Self-assignment, skipping email");
-      return new Response(
-        JSON.stringify({ message: "Self-assignment, no email sent" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.log("Self-assignment detected; sending email anyway");
     }
 
     const resend = new Resend(resendApiKey);
