@@ -26,7 +26,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Plus, ListTodo, Archive, Trash2, ArrowLeft, Edit } from 'lucide-react';
-import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 
 interface TodoList {
@@ -223,7 +222,6 @@ export default function TeamLists() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
       <main className="container mx-auto px-4 py-8 pt-24">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
