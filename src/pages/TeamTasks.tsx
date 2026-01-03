@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import TaskModal from '@/components/tasks/TaskModal';
 import TaskFilters from '@/components/tasks/TaskFilters';
-import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 
 interface Task {
@@ -242,7 +241,6 @@ export default function TeamTasks() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
       <main className="container mx-auto px-4 py-8 pt-24">
         <div className="flex justify-between items-center mb-8">
           <div>
