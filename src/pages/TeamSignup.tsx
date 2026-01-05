@@ -116,6 +116,7 @@ export default function TeamSignup() {
       }
 
       // Link the user to the team member record and clear invite token
+      // The team_member role is automatically assigned via database trigger
       const { error: updateError } = await supabase
         .from("team_members")
         .update({ user_id: authData.user.id, invite_token: null })
@@ -124,15 +125,6 @@ export default function TeamSignup() {
       if (updateError) {
         console.error("Error linking team member:", updateError);
         // Don't fail completely - the account is created
-      }
-
-      // Add team_member role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({ user_id: authData.user.id, role: "team_member" });
-
-      if (roleError) {
-        console.error("Error adding role:", roleError);
       }
 
       toast({
