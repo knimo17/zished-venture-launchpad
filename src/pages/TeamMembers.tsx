@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -17,6 +17,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, ArrowLeft, UserPlus, Mail } from 'lucide-react';
+import { ArrowLeft, UserPlus, Mail, Trash2 } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -41,6 +51,7 @@ export default function TeamMembers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
 
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -193,6 +204,38 @@ export default function TeamMembers() {
     }
   };
 
+  const handleDeleteMember = async (member: TeamMember) => {
+    try {
+      // First delete from user_roles if they have a valid user_id (not the placeholder)
+      if (member.user_id && member.user_id !== user?.id) {
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', member.user_id);
+      }
+
+      // Then delete the team member record
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('id', member.id);
+
+      if (error) throw error;
+
+      setMembers((prev) => prev.filter((m) => m.id !== member.id));
+      toast({ title: 'Member deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting member:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete team member.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingMember(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -229,12 +272,13 @@ export default function TeamMembers() {
                 <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Active</TableHead>
+                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <p className="text-muted-foreground">No team members yet.</p>
                   </TableCell>
                 </TableRow>
@@ -261,6 +305,16 @@ export default function TeamMembers() {
                         checked={member.is_active}
                         onCheckedChange={() => toggleMemberStatus(member)}
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeletingMember(member)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -307,6 +361,26 @@ export default function TeamMembers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingMember} onOpenChange={(open) => !open && setDeletingMember(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Team Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deletingMember?.name}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletingMember && handleDeleteMember(deletingMember)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
