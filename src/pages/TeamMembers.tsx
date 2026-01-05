@@ -34,8 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus, Mail, Trash2 } from 'lucide-react';
+import { UserPlus, Mail, Trash2, Shield, ShieldCheck } from 'lucide-react';
 import { TeamHeader } from '@/components/TeamHeader';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Permission } from '@/hooks/useTeamMemberPermissions';
 
 interface TeamMember {
   id: string;
@@ -44,7 +46,13 @@ interface TeamMember {
   email: string;
   is_active: boolean;
   created_at: string;
+  permissions?: Permission[];
 }
+
+const AVAILABLE_PERMISSIONS: { value: Permission; label: string }[] = [
+  { value: 'view_applications', label: 'View Applications' },
+  { value: 'view_weekly_reports', label: 'View Weekly Reports' },
+];
 
 export default function TeamMembers() {
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -53,6 +61,8 @@ export default function TeamMembers() {
   const [formData, setFormData] = useState({ name: '', email: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
+  const [permissionsModalMember, setPermissionsModalMember] = useState<TeamMember | null>(null);
+  const [memberPermissions, setMemberPermissions] = useState<Permission[]>([]);
 
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -83,7 +93,20 @@ export default function TeamMembers() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMembers(data || []);
+
+      // Fetch permissions for all members
+      const { data: permissionsData } = await supabase
+        .from('team_member_permissions')
+        .select('team_member_id, permission');
+
+      const membersWithPermissions = (data || []).map((member) => ({
+        ...member,
+        permissions: (permissionsData || [])
+          .filter((p) => p.team_member_id === member.id)
+          .map((p) => p.permission as Permission),
+      }));
+
+      setMembers(membersWithPermissions);
     } catch (error) {
       console.error('Error fetching members:', error);
       toast({
@@ -263,6 +286,61 @@ export default function TeamMembers() {
     }
   };
 
+  const openPermissionsModal = (member: TeamMember) => {
+    setPermissionsModalMember(member);
+    setMemberPermissions(member.permissions || []);
+  };
+
+  const togglePermission = (permission: Permission) => {
+    setMemberPermissions((prev) =>
+      prev.includes(permission)
+        ? prev.filter((p) => p !== permission)
+        : [...prev, permission]
+    );
+  };
+
+  const savePermissions = async () => {
+    if (!permissionsModalMember) return;
+
+    try {
+      // Delete existing permissions
+      await supabase
+        .from('team_member_permissions')
+        .delete()
+        .eq('team_member_id', permissionsModalMember.id);
+
+      // Insert new permissions
+      if (memberPermissions.length > 0) {
+        const { error } = await supabase.from('team_member_permissions').insert(
+          memberPermissions.map((permission) => ({
+            team_member_id: permissionsModalMember.id,
+            permission,
+          }))
+        );
+        if (error) throw error;
+      }
+
+      // Update local state
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === permissionsModalMember.id
+            ? { ...m, permissions: memberPermissions }
+            : m
+        )
+      );
+
+      toast({ title: 'Permissions updated' });
+      setPermissionsModalMember(null);
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save permissions.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -331,14 +409,28 @@ export default function TeamMembers() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeletingMember(member)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openPermissionsModal(member)}
+                          title="Manage permissions"
+                        >
+                          {(member.permissions?.length || 0) > 0 ? (
+                            <ShieldCheck className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Shield className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeletingMember(member)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -405,6 +497,40 @@ export default function TeamMembers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!permissionsModalMember} onOpenChange={(open) => !open && setPermissionsModalMember(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Permissions</DialogTitle>
+            <DialogDescription>
+              Set permissions for <strong>{permissionsModalMember?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {AVAILABLE_PERMISSIONS.map((perm) => (
+              <div key={perm.value} className="flex items-center space-x-3">
+                <Checkbox
+                  id={perm.value}
+                  checked={memberPermissions.includes(perm.value)}
+                  onCheckedChange={() => togglePermission(perm.value)}
+                />
+                <label
+                  htmlFor={perm.value}
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {perm.label}
+                </label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermissionsModalMember(null)}>
+              Cancel
+            </Button>
+            <Button onClick={savePermissions}>Save Permissions</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </main>
     </div>
   );

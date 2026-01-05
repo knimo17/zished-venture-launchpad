@@ -8,14 +8,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, ListTodo, Users, ChevronDown } from "lucide-react";
+import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
+import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
+import { FridayReportReminder } from "@/components/FridayReportReminder";
 
 export function TeamHeader() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentMember, isAdmin } = useCurrentTeamMember();
+  const { hasPermission } = useTeamMemberPermissions();
 
   const handleSignOut = async () => {
     await signOut();
@@ -32,41 +35,63 @@ export function TeamHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-6">
-            <Link to="/" className="font-bold text-xl tracking-tight">
-              verigo54<span className="text-accent">.</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/team/tasks")}
-              >
-                <ListTodo className="h-4 w-4 mr-2" />
-                Tasks
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/team/lists")}
-              >
-                Lists
-              </Button>
-              {isAdmin && (
+    <>
+      <div className="container mx-auto px-4 pt-2">
+        <FridayReportReminder />
+      </div>
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-6">
+              <Link to="/" className="font-bold text-xl tracking-tight">
+                verigo54<span className="text-accent">.</span>
+              </Link>
+              <nav className="hidden md:flex items-center gap-4">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate("/team/members")}
+                  onClick={() => navigate("/team/tasks")}
                 >
-                  <Users className="h-4 w-4 mr-2" />
-                  Members
+                  <ListTodo className="h-4 w-4 mr-2" />
+                  Tasks
                 </Button>
-              )}
-            </nav>
-          </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/team/lists")}
+                >
+                  Lists
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/team/weekly-report")}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Weekly Report
+                </Button>
+                {hasPermission("view_applications") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/team/applications")}
+                  >
+                    <Inbox className="h-4 w-4 mr-2" />
+                    Applications
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/team/members")}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Members
+                  </Button>
+                )}
+              </nav>
+            </div>
 
           <div className="flex items-center gap-4">
             {currentMember ? (
@@ -105,6 +130,22 @@ export function TeamHeader() {
                   >
                     Lists
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="md:hidden"
+                    onClick={() => navigate("/team/weekly-report")}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Weekly Report
+                  </DropdownMenuItem>
+                  {hasPermission("view_applications") && (
+                    <DropdownMenuItem
+                      className="md:hidden"
+                      onClick={() => navigate("/team/applications")}
+                    >
+                      <Inbox className="h-4 w-4 mr-2" />
+                      Applications
+                    </DropdownMenuItem>
+                  )}
                   {isAdmin && (
                     <DropdownMenuItem
                       className="md:hidden"
@@ -150,5 +191,6 @@ export function TeamHeader() {
         </div>
       </div>
     </header>
+    </>
   );
 }
