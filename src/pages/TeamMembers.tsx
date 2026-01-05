@@ -254,7 +254,7 @@ export default function TeamMembers() {
       await supabase.from('task_collaborators').delete().eq('team_member_id', member.id);
       await supabase.from('tasks').update({ assigned_to: null }).eq('assigned_to', member.id);
       await supabase.from('tasks').update({ created_by: currentAdminMemberId }).eq('created_by', member.id);
-      await supabase.from('todo_lists').update({ owner_id: currentAdminMemberId }).eq('owner_id', member.id);
+      await supabase.from('goals').update({ owner_id: currentAdminMemberId }).eq('owner_id', member.id);
 
       // Delete the team member record
       const { error } = await supabase.from('team_members').delete().eq('id', member.id);

@@ -16,8 +16,10 @@ import {
   CheckCircle2,
   Circle,
   Pause,
-  ListTodo,
+  Target,
   StickyNote,
+  Link2,
+  Lock,
 } from 'lucide-react';
 import TaskModal from '@/components/tasks/TaskModal';
 import TaskFilters from '@/components/tasks/TaskFilters';
@@ -35,15 +37,24 @@ interface Task {
   assigned_to: string | null;
   created_by: string;
   completed_at: string | null;
-  list_id: string;
+  goal_id: string;
+  order_index: number;
+  depends_on: string | null;
+  is_required: boolean;
+  completion_criteria: string | null;
   created_at: string;
-  todo_lists: {
+  goals: {
     id: string;
     name: string;
   };
   assigned_member?: {
     id: string;
     name: string;
+  };
+  dependency_task?: {
+    id: string;
+    title: string;
+    status: string;
   };
 }
 
@@ -54,7 +65,7 @@ interface TeamMemberRow {
   user_id: string | null;
 }
 
-interface TodoList {
+interface Goal {
   id: string;
   name: string;
   owner_id: string;
@@ -63,7 +74,7 @@ interface TodoList {
 export default function TeamTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([]);
-  const [todoLists, setTodoLists] = useState<TodoList[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -105,31 +116,44 @@ export default function TeamTasks() {
       if (membersError) throw membersError;
       setTeamMembers(membersData || []);
 
-      // Get todo lists
-      const { data: listsData, error: listsError } = await supabase
-        .from('todo_lists')
+      // Get goals (renamed from todo_lists)
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('goals')
         .select('*')
         .eq('is_archived', false);
 
-      if (listsError) throw listsError;
-      setTodoLists(listsData || []);
+      if (goalsError) throw goalsError;
+      setGoals(goalsData || []);
 
       // Get tasks with related data
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select(`
           *,
-          todo_lists (id, name)
+          goals (id, name)
         `)
+        .order('order_index', { ascending: true })
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (tasksError) throw tasksError;
 
-      // Map assigned member names
-      const tasksWithMembers = (tasksData || []).map((task) => ({
-        ...task,
-        assigned_member: membersData?.find((m) => m.id === task.assigned_to),
-      }));
+      // Map assigned member names and dependencies
+      const tasksWithMembers = await Promise.all(
+        (tasksData || []).map(async (task) => {
+          let dependencyTask = undefined;
+          if (task.depends_on) {
+            const dep = tasksData?.find(t => t.id === task.depends_on);
+            if (dep) {
+              dependencyTask = { id: dep.id, title: dep.title, status: dep.status };
+            }
+          }
+          return {
+            ...task,
+            assigned_member: membersData?.find((m) => m.id === task.assigned_to),
+            dependency_task: dependencyTask,
+          };
+        })
+      );
 
       setTasks(tasksWithMembers);
     } catch (error) {
@@ -145,6 +169,21 @@ export default function TeamTasks() {
   };
 
   const handleStatusChange = async (taskId: string, completed: boolean) => {
+    const task = tasks.find(t => t.id === taskId);
+    
+    // Check if dependency is completed
+    if (completed && task?.depends_on) {
+      const depTask = tasks.find(t => t.id === task.depends_on);
+      if (depTask && depTask.status !== 'completed') {
+        toast({
+          title: 'Dependency not completed',
+          description: `You must complete "${depTask.title}" first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     const newStatus = completed ? 'completed' : 'pending';
     const completedAt = completed ? new Date().toISOString() : null;
 
@@ -157,10 +196,10 @@ export default function TeamTasks() {
       if (error) throw error;
 
       setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId
-            ? { ...task, status: newStatus, completed_at: completedAt }
-            : task
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, status: newStatus, completed_at: completedAt }
+            : t
         )
       );
 
@@ -181,7 +220,7 @@ export default function TeamTasks() {
     if (filters.status !== 'all' && task.status !== filters.status) return false;
     if (filters.priority !== 'all' && task.priority !== filters.priority) return false;
     if (filters.assignee !== 'all' && task.assigned_to !== filters.assignee) return false;
-    if (filters.list !== 'all' && task.list_id !== filters.list) return false;
+    if (filters.list !== 'all' && task.goal_id !== filters.list) return false;
     return true;
   });
 
@@ -217,6 +256,12 @@ export default function TeamTasks() {
     return new Date(dueDate) < new Date();
   };
 
+  const isDependencyBlocked = (task: Task) => {
+    if (!task.depends_on) return false;
+    const depTask = tasks.find(t => t.id === task.depends_on);
+    return depTask && depTask.status !== 'completed';
+  };
+
   if (memberLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -246,7 +291,7 @@ export default function TeamTasks() {
           filters={filters}
           onFiltersChange={setFilters}
           teamMembers={teamMembers}
-          todoLists={todoLists}
+          todoLists={goals}
         />
 
         <div className="grid gap-4 mt-6">
@@ -268,7 +313,7 @@ export default function TeamTasks() {
                 key={task.id}
                 className={`cursor-pointer transition-colors hover:bg-muted/50 ${
                   task.status === 'completed' ? 'opacity-60' : ''
-                }`}
+                } ${isDependencyBlocked(task) ? 'border-l-4 border-l-orange-400' : ''}`}
                 onClick={() => { setSelectedTask(task); setIsModalOpen(true); }}
               >
                 <CardContent className="py-4">
@@ -276,13 +321,14 @@ export default function TeamTasks() {
                     <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={task.status === 'completed'}
+                        disabled={isDependencyBlocked(task)}
                         onCheckedChange={(checked) =>
                           handleStatusChange(task.id, checked as boolean)
                         }
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         {getStatusIcon(task.status)}
                         <h3
                           className={`font-medium ${
@@ -292,10 +338,19 @@ export default function TeamTasks() {
                           {task.title}
                         </h3>
                         {getPriorityBadge(task.priority)}
+                        {task.is_required && (
+                          <Badge variant="outline" className="text-xs">Required</Badge>
+                        )}
                         {isOverdue(task.due_date) && task.status !== 'completed' && (
                           <Badge variant="destructive" className="gap-1">
                             <AlertCircle className="h-3 w-3" />
                             Overdue
+                          </Badge>
+                        )}
+                        {isDependencyBlocked(task) && (
+                          <Badge variant="outline" className="gap-1 text-orange-600 border-orange-400">
+                            <Lock className="h-3 w-3" />
+                            Blocked
                           </Badge>
                         )}
                       </div>
@@ -303,6 +358,27 @@ export default function TeamTasks() {
                         <p className="text-sm text-muted-foreground line-clamp-1">
                           {task.description}
                         </p>
+                      )}
+                      {task.completion_criteria && (
+                        <div className="flex items-start gap-1.5 mt-2 text-xs bg-green-50 dark:bg-green-950/30 p-2 rounded border border-green-200 dark:border-green-900">
+                          <CheckCircle2 className="h-3 w-3 mt-0.5 text-green-600 shrink-0" />
+                          <p className="text-green-700 dark:text-green-400">
+                            <strong>Done when:</strong> {task.completion_criteria}
+                          </p>
+                        </div>
+                      )}
+                      {task.dependency_task && (
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                          <Link2 className="h-3 w-3" />
+                          <span>
+                            Depends on: {task.dependency_task.title}
+                            {task.dependency_task.status === 'completed' ? (
+                              <CheckCircle2 className="h-3 w-3 inline ml-1 text-green-600" />
+                            ) : (
+                              <Circle className="h-3 w-3 inline ml-1" />
+                            )}
+                          </span>
+                        </div>
                       )}
                       {task.notes && (
                         <div className="flex items-start gap-1.5 mt-2 text-xs bg-muted/50 p-2 rounded">
@@ -312,8 +388,8 @@ export default function TeamTasks() {
                       )}
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <ListTodo className="h-3 w-3" />
-                          {task.todo_lists?.name}
+                          <Target className="h-3 w-3" />
+                          {task.goals?.name}
                         </span>
                         {task.due_date && (
                           <span className="flex items-center gap-1">
@@ -326,6 +402,9 @@ export default function TeamTasks() {
                             <Users className="h-3 w-3" />
                             {task.assigned_member.name}
                           </span>
+                        )}
+                        {task.order_index > 0 && (
+                          <span className="text-muted-foreground">Step {task.order_index}</span>
                         )}
                       </div>
                     </div>
@@ -341,7 +420,8 @@ export default function TeamTasks() {
           onOpenChange={setIsModalOpen}
           task={selectedTask}
           teamMembers={teamMembers}
-          todoLists={todoLists}
+          goals={goals}
+          allTasks={tasks}
           currentMember={currentMember}
           onSave={fetchData}
         />

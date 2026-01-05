@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FolderKanban, ListTodo, ArrowRight } from "lucide-react";
+import { Target, ListTodo, ArrowRight, Link2, CheckCircle2 } from "lucide-react";
 
-const ONBOARDING_KEY = "team_onboarding_seen";
+const ONBOARDING_KEY = "team_onboarding_seen_v2";
 
 interface TeamOnboardingProps {
   trigger?: boolean;
@@ -58,19 +58,19 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
         <DialogHeader>
           <DialogTitle className="text-xl">Welcome to the Team Dashboard</DialogTitle>
           <DialogDescription>
-            Here's a quick overview of how Lists and Tasks work together.
+            Here's how Goals and Tasks work together to help you achieve outcomes.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="flex gap-4 items-start">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <FolderKanban className="h-5 w-5 text-primary" />
+              <Target className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold mb-1">Lists (Projects)</h3>
+              <h3 className="font-semibold mb-1">Goals (Outcomes)</h3>
               <p className="text-sm text-muted-foreground">
-                Lists are containers that group related tasks together. Think of them as projects or categories, like "Website Redesign" or "Q1 Goals".
+                Goals represent the outcomes you want to achieve. Each goal can have a target date and tracks progress automatically based on completed tasks.
               </p>
             </div>
           </div>
@@ -84,19 +84,38 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
               <ListTodo className="h-5 w-5 text-accent" />
             </div>
             <div>
-              <h3 className="font-semibold mb-1">Tasks (Action Items)</h3>
+              <h3 className="font-semibold mb-1">Tasks (Action Steps)</h3>
               <p className="text-sm text-muted-foreground">
-                Tasks are individual action items within a list. Each task can be assigned to a team member, have a due date, and track progress.
+                Tasks are the actionable steps within a goal. They can be ordered, have dependencies, and include clear completion criteria.
               </p>
+            </div>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <p className="text-sm font-medium">Key Features:</p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                <span><strong>Dependencies:</strong> Tasks can depend on other tasks being completed first</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                <span><strong>Completion Criteria:</strong> Define what "done" looks like for each task</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                <span><strong>Templates:</strong> Use pre-built templates like "Register a Business with RGD"</span>
+              </div>
             </div>
           </div>
 
           <div className="bg-muted/50 rounded-lg p-4">
             <p className="text-sm font-medium mb-2">Quick Start:</p>
             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>Create a <strong>List</strong> to organize your work</li>
-              <li>Add <strong>Tasks</strong> to that list</li>
-              <li>Assign tasks to team members and set due dates</li>
+              <li>Create a <strong>Goal</strong> (optionally from a template)</li>
+              <li>Add <strong>Tasks</strong> with clear completion criteria</li>
+              <li>Set dependencies between tasks if needed</li>
+              <li>Track progress as tasks are completed</li>
             </ol>
           </div>
         </div>
