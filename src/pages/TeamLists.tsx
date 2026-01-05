@@ -73,6 +73,9 @@ export default function TeamLists() {
         .from('team_members')
         .select('*')
         .eq('user_id', user.id)
+        .is('invite_token', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       if (memberError) throw memberError;

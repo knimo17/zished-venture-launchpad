@@ -38,15 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select('role')
               .eq('user_id', session.user.id)
               .eq('role', 'admin')
-              .single();
+              .maybeSingle();
             setIsAdmin(!!adminData);
-            
+
             const { data: teamData } = await supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', session.user.id)
               .eq('role', 'team_member')
-              .single();
+              .maybeSingle();
             setIsTeamMember(!!teamData);
             
             setLoading(false);
@@ -71,15 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .select('role')
             .eq('user_id', session.user.id)
             .eq('role', 'admin')
-            .single();
+            .maybeSingle();
           setIsAdmin(!!adminData);
-          
+
           const { data: teamData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
             .eq('role', 'team_member')
-            .single();
+            .maybeSingle();
           setIsTeamMember(!!teamData);
           
           setLoading(false);
