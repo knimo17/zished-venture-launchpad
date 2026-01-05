@@ -26,3 +26,15 @@ verify_jwt = false
 
 [functions.check-task-reminders]
 verify_jwt = false
+
+[functions.send-team-invite]
+verify_jwt = false
+
+[functions.send-task-assignment]
+verify_jwt = false
+
+[functions.validate-team-invite]
+verify_jwt = false
+
+[functions.link-team-invite]
+verify_jwt = false
