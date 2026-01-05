@@ -670,6 +670,35 @@ export type Database = {
           },
         ]
       }
+      team_member_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_member_permissions_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string
@@ -1073,6 +1102,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_team_permission: {
+        Args: { _permission: string; _user_id: string }
         Returns: boolean
       }
       is_task_collaborator: {

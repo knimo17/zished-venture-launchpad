@@ -30,6 +30,8 @@ import TeamLists from "./pages/TeamLists";
 import TeamMembers from "./pages/TeamMembers";
 import TeamSignup from "./pages/TeamSignup";
 import TeamLogin from "./pages/TeamLogin";
+import TeamApplications from "./pages/TeamApplications";
+import TeamWeeklyReport from "./pages/TeamWeeklyReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +68,8 @@ const App = () => (
             <Route path="/team/tasks" element={<TeamTasks />} />
             <Route path="/team/lists" element={<TeamLists />} />
             <Route path="/team/members" element={<ProtectedRoute><TeamMembers /></ProtectedRoute>} />
+            <Route path="/team/applications" element={<TeamApplications />} />
+            <Route path="/team/weekly-report" element={<TeamWeeklyReport />} />
             
             {/* Main app routes with navigation */}
             <Route element={<MainLayout />}>
