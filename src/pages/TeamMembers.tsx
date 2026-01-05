@@ -38,7 +38,7 @@ import { ArrowLeft, UserPlus, Mail, Trash2 } from 'lucide-react';
 
 interface TeamMember {
   id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   email: string;
   is_active: boolean;
@@ -205,29 +205,56 @@ export default function TeamMembers() {
 
   const handleDeleteMember = async (member: TeamMember) => {
     try {
-      // First delete from user_roles if they have a valid user_id (not the placeholder)
-      if (member.user_id && member.user_id !== user?.id) {
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', member.user_id);
+      const currentAdminMemberId = members.find((m) => m.user_id === user?.id)?.id;
+
+      if (!currentAdminMemberId) {
+        toast({
+          title: 'Error',
+          description: 'Could not identify your team member record. Please refresh and try again.',
+          variant: 'destructive',
+        });
+        return;
       }
 
-      // Then delete the team member record
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('id', member.id);
+      if (member.id === currentAdminMemberId) {
+        toast({
+          title: 'Action not allowed',
+          description: "You can't delete your own account.",
+          variant: 'destructive',
+        });
+        return;
+      }
 
+      // Reassign/cleanup dependent records so deletion can't break tasks/lists
+      await supabase.from('task_collaborators').delete().eq('team_member_id', member.id);
+      await supabase.from('tasks').update({ assigned_to: null }).eq('assigned_to', member.id);
+      await supabase.from('tasks').update({ created_by: currentAdminMemberId }).eq('created_by', member.id);
+      await supabase.from('todo_lists').update({ owner_id: currentAdminMemberId }).eq('owner_id', member.id);
+
+      // Delete the team member record
+      const { error } = await supabase.from('team_members').delete().eq('id', member.id);
       if (error) throw error;
+
+      // Remove roles for the user (if this member had an auth account)
+      if (member.user_id) {
+        const { error: roleDeleteError } = await supabase.from('user_roles').delete().eq('user_id', member.user_id);
+        if (roleDeleteError) throw roleDeleteError;
+      }
 
       setMembers((prev) => prev.filter((m) => m.id !== member.id));
       toast({ title: 'Member deleted successfully' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting member:', error);
+
+      // Common case: DB constraints due to references
+      const message =
+        error?.code === '23502'
+          ? 'This member is referenced by existing tasks/lists. Deactivate them instead.'
+          : 'Failed to delete team member.';
+
       toast({
         title: 'Error',
-        description: 'Failed to delete team member.',
+        description: message,
         variant: 'destructive',
       });
     } finally {

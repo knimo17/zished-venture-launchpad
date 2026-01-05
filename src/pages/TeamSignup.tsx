@@ -98,7 +98,13 @@ export default function TeamSignup() {
     setLoading(true);
 
     try {
-      // Sign up the user
+      if (!teamMemberId) {
+        throw new Error("Invalid invite. Please request a new invite link.");
+      }
+
+      // Create the auth account (or sign in if it already exists)
+      let userId: string | null = null;
+
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -108,30 +114,53 @@ export default function TeamSignup() {
       });
 
       if (signUpError) {
-        throw signUpError;
+        const msg = (signUpError.message || '').toLowerCase();
+
+        if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInError) throw signInError;
+          userId = signInData.user?.id ?? null;
+        } else {
+          throw signUpError;
+        }
+      } else {
+        userId = authData.user?.id ?? null;
       }
 
-      if (!authData.user) {
-        throw new Error("Failed to create account");
+      if (!userId) {
+        throw new Error('Failed to create account');
+      }
+
+      // Ensure we have an authenticated session (required for secure invite linking)
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          title: 'Confirm your email',
+          description: 'Please confirm your email, then sign in to complete setup.',
+        });
+        return;
       }
 
       // Link the user to the team member record and clear invite token
       // The team_member role is automatically assigned via database trigger
       const { error: updateError } = await supabase
-        .from("team_members")
-        .update({ user_id: authData.user.id, invite_token: null })
-        .eq("id", teamMemberId);
+        .from('team_members')
+        .update({ user_id: userId, invite_token: null })
+        .eq('id', teamMemberId);
 
       if (updateError) {
-        console.error("Error linking team member:", updateError);
+        console.error('Error linking team member:', updateError);
         toast({
-          title: "Account created",
-          description: "Account created but team linking failed. Please contact admin.",
-          variant: "destructive",
+          title: 'Account created',
+          description: 'Account created but team linking failed. Please contact admin.',
+          variant: 'destructive',
         });
         return;
       }
-
       toast({
         title: "Account created!",
         description: "You can now access your tasks.",
