@@ -25,6 +25,7 @@ export const Navigation = () => {
     { path: "/ideal-candidate", label: "Operators" },
     { path: "/internships", label: "Internships" },
     { path: "/process", label: "Process" },
+    { path: "/team/login", label: "Team" },
   ];
 
   return (

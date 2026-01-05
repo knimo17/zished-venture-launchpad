@@ -512,12 +512,18 @@ export default function TaskModal({
           )}
 
           <div>
-            <Label>Notes</Label>
+            <Label className="flex items-center gap-2">
+              Notes
+              <span className="text-xs text-muted-foreground font-normal">
+                (add links, resources, or progress updates)
+              </span>
+            </Label>
             <Textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Additional notes..."
-              rows={3}
+              placeholder="e.g., Working on this spreadsheet: https://docs.google.com/spreadsheets/..."
+              rows={4}
+              className="font-mono text-sm"
             />
           </div>
 

@@ -17,10 +17,12 @@ import {
   Circle,
   Pause,
   ListTodo,
+  StickyNote,
 } from 'lucide-react';
 import TaskModal from '@/components/tasks/TaskModal';
 import TaskFilters from '@/components/tasks/TaskFilters';
 import { Footer } from '@/components/Footer';
+import { TeamHeader } from '@/components/TeamHeader';
 
 interface Task {
   id: string;
@@ -225,28 +227,19 @@ export default function TeamTasks() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 pt-24">
-        <div className="flex justify-between items-center mb-8">
+      <TeamHeader />
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Tasks</h1>
-            <p className="text-muted-foreground">Manage your team's tasks</p>
+            <h1 className="text-3xl font-bold">My Tasks</h1>
+            <p className="text-muted-foreground">
+              {currentMember ? `Welcome back, ${currentMember.name.split(' ')[0]}` : 'Manage your tasks'}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/team/lists')}>
-              <ListTodo className="h-4 w-4 mr-2" />
-              Lists
-            </Button>
-            {isAdmin && (
-              <Button variant="outline" onClick={() => navigate('/team/members')}>
-                <Users className="h-4 w-4 mr-2" />
-                Members
-              </Button>
-            )}
-            <Button onClick={() => { setSelectedTask(null); setIsModalOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Button>
-          </div>
+          <Button onClick={() => { setSelectedTask(null); setIsModalOpen(true); }} size="lg">
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
+          </Button>
         </div>
 
         <TaskFilters
@@ -311,7 +304,13 @@ export default function TeamTasks() {
                           {task.description}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      {task.notes && (
+                        <div className="flex items-start gap-1.5 mt-2 text-xs bg-muted/50 p-2 rounded">
+                          <StickyNote className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+                          <p className="text-muted-foreground line-clamp-2">{task.notes}</p>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <ListTodo className="h-3 w-3" />
                           {task.todo_lists?.name}
