@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,8 @@ import { AIInterviewResponsesSection } from '@/components/AIInterviewResponsesSe
 import { calculateAssessmentResults, AssessmentResponse } from '@/lib/assessmentScoring';
 import { calculateAllVentureMatches, VentureProfile, AssessmentData, VentureMatchResult } from '@/lib/ventureMatching';
 import { Json } from '@/integrations/supabase/types';
+import { TeamHeader } from '@/components/TeamHeader';
+import { useTeamMemberPermissions } from '@/hooks/useTeamMemberPermissions';
 import {
   Select,
   SelectContent,
@@ -122,6 +124,12 @@ interface AIInterviewResponse {
 export default function ApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { hasPermission, loading: permLoading, isAdmin } = useTeamMemberPermissions();
+  
+  // Determine if accessed via team route
+  const isTeamRoute = location.pathname.startsWith('/team/');
+  
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
@@ -141,6 +149,15 @@ export default function ApplicationDetail() {
   const [aiInterviewResponses, setAiInterviewResponses] = useState<AIInterviewResponse[]>([]);
   
   const { toast } = useToast();
+
+  // Check permission for team access
+  useEffect(() => {
+    if (permLoading) return;
+    
+    if (isTeamRoute && !hasPermission("view_applications") && !isAdmin) {
+      navigate("/team/tasks");
+    }
+  }, [permLoading, isTeamRoute, hasPermission, isAdmin, navigate]);
 
   useEffect(() => {
     if (id) {
@@ -176,7 +193,7 @@ export default function ApplicationDetail() {
         description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
-      navigate('/admin/dashboard');
+      navigate(isTeamRoute ? '/team/applications' : '/admin/dashboard');
     } finally {
       setLoading(false);
     }
@@ -666,10 +683,13 @@ export default function ApplicationDetail() {
     );
   };
 
-  if (loading) {
+  if (loading || permLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading application...</div>
+      <div className="min-h-screen bg-background">
+        {isTeamRoute && <TeamHeader />}
+        <div className="flex items-center justify-center py-20">
+          <div className="text-lg">Loading application...</div>
+        </div>
       </div>
     );
   }
@@ -740,6 +760,7 @@ export default function ApplicationDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      {isTeamRoute && <TeamHeader />}
       {/* Print Header (hidden on screen) */}
       <div className="print:block hidden text-center mb-8">
         <h1 className="text-2xl font-bold">verigo54 - {isInternship ? 'Internship' : 'Venture Operator'} Application</h1>
@@ -754,9 +775,9 @@ export default function ApplicationDetail() {
       {/* Screen-only controls */}
       <div className="print:hidden sticky top-0 bg-background border-b z-10 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <Button onClick={() => navigate('/admin/dashboard')} variant="outline">
+          <Button onClick={() => navigate(isTeamRoute ? '/team/applications' : '/admin/dashboard')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            Back to {isTeamRoute ? 'Applications' : 'Dashboard'}
           </Button>
           <div className="flex gap-2">
             {application.resume_file_path && (

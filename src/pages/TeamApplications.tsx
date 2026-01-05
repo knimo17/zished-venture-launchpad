@@ -202,7 +202,7 @@ export default function TeamApplications() {
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => navigate(`/admin/application/${app.id}`)}
+                          onClick={() => navigate(`/team/application/${app.id}`)}
                           variant="outline"
                           size="sm"
                         >
