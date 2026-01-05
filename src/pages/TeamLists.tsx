@@ -25,8 +25,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, ListTodo, Archive, Trash2, ArrowLeft, Edit } from 'lucide-react';
+import { Plus, ListTodo, Archive, Trash2, Edit } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { TeamHeader } from '@/components/TeamHeader';
 
 interface TodoList {
   id: string;
@@ -201,16 +202,12 @@ export default function TeamLists() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-4 py-8 pt-24">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/team/tasks')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Todo Lists</h1>
-              <p className="text-muted-foreground">Organize your tasks into lists</p>
-            </div>
+      <TeamHeader />
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Todo Lists</h1>
+            <p className="text-muted-foreground">Organize your tasks into lists</p>
           </div>
           <div className="flex gap-2">
             <Button

@@ -34,7 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, UserPlus, Mail, Trash2 } from 'lucide-react';
+import { UserPlus, Mail, Trash2 } from 'lucide-react';
+import { TeamHeader } from '@/components/TeamHeader';
 
 interface TeamMember {
   id: string;
@@ -271,22 +272,19 @@ export default function TeamMembers() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/team/tasks')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+    <div className="min-h-screen bg-background">
+      <TeamHeader />
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold">Team Members</h1>
             <p className="text-muted-foreground">Manage your team</p>
           </div>
+          <Button onClick={() => setIsModalOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Member
+          </Button>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Member
-        </Button>
-      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -407,6 +405,7 @@ export default function TeamMembers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+      </main>
+    </div>
   );
 }

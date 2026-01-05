@@ -29,6 +29,7 @@ import TeamTasks from "./pages/TeamTasks";
 import TeamLists from "./pages/TeamLists";
 import TeamMembers from "./pages/TeamMembers";
 import TeamSignup from "./pages/TeamSignup";
+import TeamLogin from "./pages/TeamLogin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,11 @@ const App = () => (
             {/* Team signup route (no navigation/banner) */}
             <Route path="/team/signup" element={<TeamSignup />} />
             
+            {/* Team tasks/lists routes (have their own header) */}
+            <Route path="/team/tasks" element={<TeamTasks />} />
+            <Route path="/team/lists" element={<TeamLists />} />
+            <Route path="/team/members" element={<ProtectedRoute><TeamMembers /></ProtectedRoute>} />
+            
             {/* Main app routes with navigation */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
@@ -71,6 +77,9 @@ const App = () => (
               <Route path="/process" element={<ProcessPage />} />
               <Route path="/internships" element={<InternshipsPage />} />
               <Route path="/apply" element={<ApplyPage />} />
+              
+              {/* Team login (has main navigation) */}
+              <Route path="/team/login" element={<TeamLogin />} />
               
               {/* Admin routes */}
               <Route path="/admin" element={<AdminLogin />} />
@@ -119,18 +128,6 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                 <WeeklyReportDetail />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Team task routes */}
-          <Route path="/team/tasks" element={<TeamTasks />} />
-          <Route path="/team/lists" element={<TeamLists />} />
-          <Route 
-            path="/team/members" 
-            element={
-              <ProtectedRoute>
-                <TeamMembers />
               </ProtectedRoute>
             } 
           />
