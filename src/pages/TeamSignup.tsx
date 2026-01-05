@@ -124,7 +124,12 @@ export default function TeamSignup() {
 
       if (updateError) {
         console.error("Error linking team member:", updateError);
-        // Don't fail completely - the account is created
+        toast({
+          title: "Account created",
+          description: "Account created but team linking failed. Please contact admin.",
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
