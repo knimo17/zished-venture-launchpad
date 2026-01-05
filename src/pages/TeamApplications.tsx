@@ -3,26 +3,51 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamHeader } from "@/components/TeamHeader";
 import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, User, Mail, Phone, Briefcase } from "lucide-react";
-import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Loader2, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Application {
   id: string;
+  created_at: string;
   name: string;
   email: string;
   phone: string;
   status: string;
-  created_at: string;
   internship_id: string | null;
+  internships: {
+    title: string;
+    portfolio_company: string;
+  } | null;
 }
 
 export default function TeamApplications() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { hasPermission, loading: permLoading, isAdmin } = useTeamMemberPermissions();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (permLoading) return;
@@ -32,31 +57,78 @@ export default function TeamApplications() {
       return;
     }
 
-    async function fetchApplications() {
-      const { data, error } = await supabase
-        .from("applications")
-        .select("id, name, email, phone, status, created_at, internship_id")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching applications:", error);
-      } else {
-        setApplications(data || []);
-      }
-      setLoading(false);
-    }
-
     fetchApplications();
   }, [permLoading, hasPermission, isAdmin, navigate]);
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      pending: "secondary",
-      reviewed: "default",
-      accepted: "default",
-      rejected: "destructive",
-    };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+  const fetchApplications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("applications")
+        .select(`
+          id, 
+          created_at, 
+          name, 
+          email, 
+          phone, 
+          status,
+          internship_id,
+          internships (
+            title,
+            portfolio_company
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setApplications(data || []);
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const { error } = await supabase
+        .from("applications")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setApplications(applications.filter(app => app.id !== id));
+      toast({
+        title: "Application deleted",
+        description: "The application has been permanently deleted.",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Error deleting application",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-500";
+      case "rejected":
+        return "bg-red-500";
+      case "reviewed":
+        return "bg-blue-500";
+      default:
+        return "bg-yellow-500";
+    }
   };
 
   if (permLoading || loading) {
@@ -77,50 +149,102 @@ export default function TeamApplications() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Applications</h1>
           <p className="text-muted-foreground mt-1">
-            View submitted applications (read-only)
+            Total applications: {applications.length}
           </p>
         </div>
 
-        {applications.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No applications found</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {applications.map((app) => (
-              <Card key={app.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      {app.name}
-                    </CardTitle>
-                    {getStatusBadge(app.status)}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-4 w-4" />
-                      {app.email}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      {app.phone}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Briefcase className="h-4 w-4" />
-                      Applied {format(new Date(app.created_at), "MMM d, yyyy")}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="bg-card rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {applications.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No applications found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                applications.map((app) => (
+                  <TableRow key={app.id}>
+                    <TableCell>
+                      {new Date(app.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-medium">{app.name}</TableCell>
+                    <TableCell>{app.email}</TableCell>
+                    <TableCell>{app.phone}</TableCell>
+                    <TableCell>
+                      {app.internship_id ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="secondary">Internship</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {app.internships?.title}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant="outline">General Application</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(app.status)}>
+                        {app.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => navigate(`/admin/application/${app.id}`)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          View Details
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deletingId === app.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Application</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete the application from {app.name}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(app.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </main>
     </div>
   );
