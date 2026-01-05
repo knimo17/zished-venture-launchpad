@@ -33,6 +33,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Users, Bell, X } from 'lucide-react';
 import CollaboratorSelect from './CollaboratorSelect';
+import { useCurrentTeamMember } from '@/hooks/useCurrentTeamMember';
+import { useTeamMemberPermissions } from '@/hooks/useTeamMemberPermissions';
 
 interface Task {
   id: string;
@@ -101,6 +103,11 @@ export default function TaskModal({
   const [enableReminders, setEnableReminders] = useState(true);
 
   const { toast } = useToast();
+  const { isAdmin } = useCurrentTeamMember();
+  const { hasPermission } = useTeamMemberPermissions();
+  
+  // Check if user can assign tasks to others
+  const canAssignTasks = isAdmin || hasPermission('assign_tasks');
 
   useEffect(() => {
     if (task) {
@@ -169,6 +176,11 @@ export default function TaskModal({
         ? new Date(`${formData.due_date}T${formData.due_time || '00:00'}:00`).toISOString()
         : null;
 
+      // If user doesn't have assign permission, always use their own ID
+      const assignedTo = canAssignTasks 
+        ? (formData.assigned_to || null)
+        : (currentMember?.id || null);
+
       const taskData = {
         title: formData.title,
         description: formData.description || null,
@@ -176,7 +188,7 @@ export default function TaskModal({
         status: formData.status,
         priority: formData.priority,
         due_date: dueDateTime,
-        assigned_to: formData.assigned_to || null,
+        assigned_to: assignedTo,
         list_id: formData.list_id,
       };
 
@@ -411,22 +423,28 @@ export default function TaskModal({
 
             <div>
               <Label>Assigned To</Label>
-              <Select
-                value={formData.assigned_to || "unassigned"}
-                onValueChange={(value) => setFormData({ ...formData, assigned_to: value === "unassigned" ? "" : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {teamMembers.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {canAssignTasks ? (
+                <Select
+                  value={formData.assigned_to || "unassigned"}
+                  onValueChange={(value) => setFormData({ ...formData, assigned_to: value === "unassigned" ? "" : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center h-10 px-3 rounded-md border bg-muted/50 text-sm text-muted-foreground">
+                  {currentMember?.name || 'You'}
+                </div>
+              )}
             </div>
           </div>
 
