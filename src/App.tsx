@@ -26,7 +26,7 @@ import WeeklyReportThankYou from "./pages/WeeklyReportThankYou";
 import AdminWeeklyReports from "./pages/AdminWeeklyReports";
 import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 import TeamTasks from "./pages/TeamTasks";
-import TeamLists from "./pages/TeamLists";
+import TeamGoals from "./pages/TeamGoals";
 import TeamMembers from "./pages/TeamMembers";
 import TeamSignup from "./pages/TeamSignup";
 import TeamLogin from "./pages/TeamLogin";
@@ -64,9 +64,10 @@ const App = () => (
             {/* Team signup route (no navigation/banner) */}
             <Route path="/team/signup" element={<TeamSignup />} />
             
-            {/* Team tasks/lists routes (have their own header) */}
+            {/* Team tasks/goals routes (have their own header) */}
             <Route path="/team/tasks" element={<TeamTasks />} />
-            <Route path="/team/lists" element={<TeamLists />} />
+            <Route path="/team/goals" element={<TeamGoals />} />
+            <Route path="/team/lists" element={<TeamGoals />} /> {/* Redirect old route */}
             <Route path="/team/members" element={<ProtectedRoute><TeamMembers /></ProtectedRoute>} />
             <Route path="/team/applications" element={<TeamApplications />} />
             <Route path="/team/application/:id" element={<ApplicationDetail />} />

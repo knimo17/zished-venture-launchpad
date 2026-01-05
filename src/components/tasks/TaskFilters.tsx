@@ -13,7 +13,7 @@ interface TeamMember {
   name: string;
 }
 
-interface TodoList {
+interface Goal {
   id: string;
   name: string;
 }
@@ -29,7 +29,7 @@ interface TaskFiltersProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   teamMembers: TeamMember[];
-  todoLists: TodoList[];
+  todoLists: Goal[]; // Keep prop name for backwards compatibility
 }
 
 export default function TaskFilters({
@@ -109,13 +109,13 @@ export default function TaskFilters({
         onValueChange={(value) => onFiltersChange({ ...filters, list: value })}
       >
         <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="List" />
+          <SelectValue placeholder="Goal" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Lists</SelectItem>
-          {todoLists.map((list) => (
-            <SelectItem key={list.id} value={list.id}>
-              {list.name}
+          <SelectItem value="all">All Goals</SelectItem>
+          {todoLists.map((goal) => (
+            <SelectItem key={goal.id} value={goal.id}>
+              {goal.name}
             </SelectItem>
           ))}
         </SelectContent>

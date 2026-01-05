@@ -9,12 +9,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox, FolderKanban, HelpCircle } from "lucide-react";
+import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox, Target, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
 import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
 import { FridayReportReminder } from "@/components/FridayReportReminder";
 import { TeamOnboarding } from "@/components/TeamOnboarding";
+
 export function TeamHeader() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -52,10 +53,10 @@ export function TeamHeader() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate("/team/lists")}
+                  onClick={() => navigate("/team/goals")}
                 >
-                  <FolderKanban className="h-4 w-4 mr-2" />
-                  Lists
+                  <Target className="h-4 w-4 mr-2" />
+                  Goals
                 </Button>
                 <Button
                   variant="ghost"
@@ -130,10 +131,10 @@ export function TeamHeader() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="md:hidden"
-                    onClick={() => navigate("/team/lists")}
+                    onClick={() => navigate("/team/goals")}
                   >
-                    <FolderKanban className="h-4 w-4 mr-2" />
-                    Lists
+                    <Target className="h-4 w-4 mr-2" />
+                    Goals
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="md:hidden"

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Users, Bell, X } from 'lucide-react';
+import { Trash2, Users, Bell, X, Link2 } from 'lucide-react';
 import CollaboratorSelect from './CollaboratorSelect';
 import { useCurrentTeamMember } from '@/hooks/useCurrentTeamMember';
 import { useTeamMemberPermissions } from '@/hooks/useTeamMemberPermissions';
@@ -46,7 +47,11 @@ interface Task {
   due_date: string | null;
   assigned_to: string | null;
   created_by: string;
-  list_id: string;
+  goal_id: string;
+  order_index: number;
+  depends_on: string | null;
+  is_required: boolean;
+  completion_criteria: string | null;
 }
 
 interface TeamMember {
@@ -55,7 +60,7 @@ interface TeamMember {
   email: string;
 }
 
-interface TodoList {
+interface Goal {
   id: string;
   name: string;
   owner_id: string;
@@ -73,7 +78,8 @@ interface TaskModalProps {
   onOpenChange: (open: boolean) => void;
   task: Task | null;
   teamMembers: TeamMember[];
-  todoLists: TodoList[];
+  goals: Goal[];
+  allTasks?: Task[];
   currentMember: TeamMember | null;
   onSave: () => void;
 }
@@ -83,7 +89,8 @@ export default function TaskModal({
   onOpenChange,
   task,
   teamMembers,
-  todoLists,
+  goals,
+  allTasks = [],
   currentMember,
   onSave,
 }: TaskModalProps) {
@@ -96,7 +103,11 @@ export default function TaskModal({
     due_date: '',
     due_time: '',
     assigned_to: '',
-    list_id: '',
+    goal_id: '',
+    order_index: 0,
+    depends_on: '',
+    is_required: true,
+    completion_criteria: '',
   });
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,6 +119,11 @@ export default function TaskModal({
   
   // Check if user can assign tasks to others
   const canAssignTasks = isAdmin || hasPermission('assign_tasks');
+
+  // Get tasks in the same goal for dependency selection
+  const tasksInSameGoal = allTasks.filter(
+    t => t.goal_id === formData.goal_id && t.id !== task?.id
+  );
 
   useEffect(() => {
     if (task) {
@@ -121,10 +137,16 @@ export default function TaskModal({
         due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
         due_time: dueDate ? dueDate.toTimeString().slice(0, 5) : '',
         assigned_to: task.assigned_to || '',
-        list_id: task.list_id,
+        goal_id: task.goal_id,
+        order_index: task.order_index || 0,
+        depends_on: task.depends_on || '',
+        is_required: task.is_required ?? true,
+        completion_criteria: task.completion_criteria || '',
       });
       fetchCollaborators(task.id);
     } else {
+      // Calculate next order_index for the selected goal
+      const maxOrder = Math.max(0, ...allTasks.filter(t => t.goal_id === goals[0]?.id).map(t => t.order_index || 0));
       setFormData({
         title: '',
         description: '',
@@ -134,11 +156,15 @@ export default function TaskModal({
         due_date: '',
         due_time: '',
         assigned_to: currentMember?.id || '',
-        list_id: todoLists[0]?.id || '',
+        goal_id: goals[0]?.id || '',
+        order_index: maxOrder + 1,
+        depends_on: '',
+        is_required: true,
+        completion_criteria: '',
       });
       setCollaborators([]);
     }
-  }, [task, currentMember, todoLists]);
+  }, [task, currentMember, goals, allTasks]);
 
   const fetchCollaborators = async (taskId: string) => {
     const { data, error } = await supabase
@@ -164,8 +190,8 @@ export default function TaskModal({
       return;
     }
 
-    if (!formData.list_id) {
-      toast({ title: 'Error', description: 'Please select a list', variant: 'destructive' });
+    if (!formData.goal_id) {
+      toast({ title: 'Error', description: 'Please select a goal', variant: 'destructive' });
       return;
     }
 
@@ -189,7 +215,11 @@ export default function TaskModal({
         priority: formData.priority,
         due_date: dueDateTime,
         assigned_to: assignedTo,
-        list_id: formData.list_id,
+        goal_id: formData.goal_id,
+        order_index: formData.order_index,
+        depends_on: formData.depends_on || null,
+        is_required: formData.is_required,
+        completion_criteria: formData.completion_criteria || null,
       };
 
       let taskId = task?.id;
@@ -403,18 +433,22 @@ export default function TaskModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>List</Label>
+              <Label>Goal</Label>
               <Select
-                value={formData.list_id}
-                onValueChange={(value) => setFormData({ ...formData, list_id: value })}
+                value={formData.goal_id}
+                onValueChange={(value) => {
+                  // Recalculate order_index for new goal
+                  const maxOrder = Math.max(0, ...allTasks.filter(t => t.goal_id === value).map(t => t.order_index || 0));
+                  setFormData({ ...formData, goal_id: value, order_index: maxOrder + 1, depends_on: '' });
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a list" />
+                  <SelectValue placeholder="Select a goal" />
                 </SelectTrigger>
                 <SelectContent>
-                  {todoLists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      {list.name}
+                  {goals.map((goal) => (
+                    <SelectItem key={goal.id} value={goal.id}>
+                      {goal.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -528,6 +562,68 @@ export default function TaskModal({
               />
             </div>
           )}
+
+          {/* New Goal-Task specific fields */}
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Sequencing & Dependencies
+            </h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Step Order</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.order_index}
+                  onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
+                  placeholder="e.g., 1, 2, 3..."
+                />
+              </div>
+
+              <div>
+                <Label>Depends On</Label>
+                <Select
+                  value={formData.depends_on || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, depends_on: value === "none" ? "" : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No dependency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No dependency</SelectItem>
+                    {tasksInSameGoal.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        Step {t.order_index}: {t.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <div>
+                <Label className="text-sm">Required for Goal Completion</Label>
+                <p className="text-xs text-muted-foreground">This task must be completed for the goal to be achieved</p>
+              </div>
+              <Switch
+                checked={formData.is_required}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked })}
+              />
+            </div>
+
+            <div className="mt-4">
+              <Label>Completion Criteria</Label>
+              <Input
+                value={formData.completion_criteria}
+                onChange={(e) => setFormData({ ...formData, completion_criteria: e.target.value })}
+                placeholder="e.g., 'Certificate received and verified'"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Define what "done" looks like for this task</p>
+            </div>
+          </div>
 
           <div>
             <Label className="flex items-center gap-2">
