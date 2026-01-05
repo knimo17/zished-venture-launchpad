@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu, ChevronDown, LogOut } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,11 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   const navItems = [
     { path: "/about", label: "About" },
@@ -65,6 +67,12 @@ export const Navigation = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {user && (
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            )}
           </div>
 
           <div className="lg:hidden">
@@ -108,6 +116,20 @@ export const Navigation = () => {
                     >
                       Apply as Venture Operator
                     </Button>
+                    {user && (
+                      <Button 
+                        size="lg" 
+                        variant="ghost"
+                        className="w-full rounded-full"
+                        onClick={() => {
+                          setOpen(false);
+                          signOut();
+                        }}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    )}
                   </div>
                 </div>
               </SheetContent>
