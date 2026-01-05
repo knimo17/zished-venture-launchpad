@@ -8,23 +8,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Users, Loader2 } from "lucide-react";
 
+interface InviteData {
+  team_member_id: string;
+  name: string;
+  email: string;
+}
+
 export default function TeamSignup() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const inviteToken = searchParams.get("token");
-  const emailParam = searchParams.get("email") || "";
 
-  const [email, setEmail] = useState(emailParam);
+  const [invite, setInvite] = useState<InviteData | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(true);
-  const [memberName, setMemberName] = useState("");
   const [isValid, setIsValid] = useState(false);
-
-  const [teamMemberId, setTeamMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     async function validateInvite() {
@@ -34,45 +36,41 @@ export default function TeamSignup() {
       }
 
       try {
-        const { data, error } = await supabase
-          .from("team_members")
-          .select("id, name, email, invite_token")
-          .eq("invite_token", inviteToken)
-          .single();
+        const { data, error } = await supabase.functions.invoke("validate-team-invite", {
+          body: { invite_token: inviteToken },
+        });
 
-        if (error || !data) {
+        if (error || !data?.valid) {
+          const errorMsg = data?.error || error?.message || "Invalid or expired invite.";
           toast({
             title: "Invalid invite",
-            description: "This invite link is not valid or has expired.",
+            description: errorMsg,
             variant: "destructive",
           });
           setValidating(false);
           return;
         }
 
-        // If invite_token is null, it means the user has already signed up
-        if (!data.invite_token) {
-          toast({
-            title: "Already registered",
-            description: "This account has already been set up. Please sign in.",
-          });
-          navigate("/admin");
-          return;
-        }
-
-        setMemberName(data.name);
-        setEmail(data.email);
-        setTeamMemberId(data.id);
+        setInvite({
+          team_member_id: data.team_member_id,
+          name: data.name,
+          email: data.email,
+        });
         setIsValid(true);
       } catch (err) {
         console.error("Error validating invite:", err);
+        toast({
+          title: "Error",
+          description: "Could not validate your invite. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setValidating(false);
       }
     }
 
     validateInvite();
-  }, [inviteToken, navigate, toast]);
+  }, [inviteToken, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,18 +93,23 @@ export default function TeamSignup() {
       return;
     }
 
+    if (!invite || !inviteToken) {
+      toast({
+        title: "Invalid invite",
+        description: "Please request a new invite link.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      if (!teamMemberId) {
-        throw new Error("Invalid invite. Please request a new invite link.");
-      }
-
-      // Create the auth account (or sign in if it already exists)
+      // 1) Create account OR sign in if already exists
       let userId: string | null = null;
 
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: invite.email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/team/tasks`,
@@ -114,59 +117,47 @@ export default function TeamSignup() {
       });
 
       if (signUpError) {
-        const msg = (signUpError.message || '').toLowerCase();
-
-        if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+        const msg = (signUpError.message || "").toLowerCase();
+        if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+          // Try signing in instead
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
+            email: invite.email,
             password,
           });
-
           if (signInError) throw signInError;
           userId = signInData.user?.id ?? null;
         } else {
           throw signUpError;
         }
       } else {
-        userId = authData.user?.id ?? null;
+        userId = signUpData.user?.id ?? null;
       }
 
       if (!userId) {
-        throw new Error('Failed to create account');
+        throw new Error("Failed to create account");
       }
 
-      // Ensure we have an authenticated session (required for secure invite linking)
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
+      // 2) Link invite via backend function (bypasses RLS)
+      const { data: linkData, error: linkError } = await supabase.functions.invoke("link-team-invite", {
+        body: { invite_token: inviteToken, user_id: userId },
+      });
+
+      if (linkError || !linkData?.success) {
+        const errorMsg = linkData?.error || linkError?.message || "Unknown error";
+        console.error("Error linking team member:", errorMsg);
         toast({
-          title: 'Confirm your email',
-          description: 'Please confirm your email, then sign in to complete setup.',
+          title: "Account created",
+          description: "Account created but team linking failed. Please contact admin.",
+          variant: "destructive",
         });
         return;
       }
 
-      // Link the user to the team member record and clear invite token
-      // The team_member role is automatically assigned via database trigger
-      const { error: updateError } = await supabase
-        .from('team_members')
-        .update({ user_id: userId, invite_token: null })
-        .eq('id', teamMemberId);
-
-      if (updateError) {
-        console.error('Error linking team member:', updateError);
-        toast({
-          title: 'Account created',
-          description: 'Account created but team linking failed. Please contact admin.',
-          variant: 'destructive',
-        });
-        return;
-      }
       toast({
         title: "Account created!",
         description: "You can now access your tasks.",
       });
 
-      // Navigate to tasks page
       navigate("/team/tasks");
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -188,7 +179,7 @@ export default function TeamSignup() {
     );
   }
 
-  if (!isValid) {
+  if (!isValid || !invite) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -219,7 +210,7 @@ export default function TeamSignup() {
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
             <Users className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>Welcome, {memberName}!</CardTitle>
+          <CardTitle>Welcome, {invite.name}!</CardTitle>
           <CardDescription>
             Create your password to access your team tasks
           </CardDescription>
@@ -231,7 +222,7 @@ export default function TeamSignup() {
               <Input
                 id="email"
                 type="email"
-                value={email}
+                value={invite.email}
                 disabled
                 className="bg-muted"
               />

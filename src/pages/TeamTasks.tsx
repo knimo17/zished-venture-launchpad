@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useCurrentTeamMember } from '@/hooks/useCurrentTeamMember';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
@@ -45,11 +45,11 @@ interface Task {
   };
 }
 
-interface TeamMember {
+interface TeamMemberRow {
   id: string;
   name: string;
   email: string;
-  user_id: string;
+  user_id: string | null;
 }
 
 interface TodoList {
@@ -60,10 +60,9 @@ interface TodoList {
 
 export default function TeamTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([]);
   const [todoLists, setTodoLists] = useState<TodoList[]>([]);
-  const [currentMember, setCurrentMember] = useState<TeamMember | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filters, setFilters] = useState({
@@ -73,50 +72,32 @@ export default function TeamTasks() {
     list: 'all',
   });
 
-  const { user, isAdmin } = useAuth();
+  const { currentMember, loading: memberLoading, error: memberError, isAdmin } = useCurrentTeamMember();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!user) {
-      navigate('/admin');
+    if (memberLoading) return;
+
+    if (memberError && !isAdmin) {
+      toast({
+        title: 'Access Denied',
+        description: memberError,
+        variant: 'destructive',
+      });
+      navigate('/');
       return;
     }
+
     fetchData();
-  }, [user]);
+  }, [memberLoading, memberError, isAdmin]);
 
   const fetchData = async () => {
-    if (!user) return;
-
     try {
-      // Get current team member
-      const { data: memberData, error: memberError } = await supabase
-        .from('team_members')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('invite_token', null)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (memberError) throw memberError;
-
-      if (!memberData && !isAdmin) {
-        toast({
-          title: 'Access Denied',
-          description: 'You are not registered as a team member.',
-          variant: 'destructive',
-        });
-        navigate('/');
-        return;
-      }
-
-      setCurrentMember(memberData);
-
       // Get all team members
       const { data: membersData, error: membersError } = await supabase
         .from('team_members')
-        .select('*')
+        .select('id, name, email, user_id')
         .eq('is_active', true);
 
       if (membersError) throw membersError;
@@ -157,7 +138,7 @@ export default function TeamTasks() {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -234,7 +215,7 @@ export default function TeamTasks() {
     return new Date(dueDate) < new Date();
   };
 
-  if (loading) {
+  if (memberLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
