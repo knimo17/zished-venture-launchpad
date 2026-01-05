@@ -69,6 +69,7 @@ const App = () => (
             <Route path="/team/lists" element={<TeamLists />} />
             <Route path="/team/members" element={<ProtectedRoute><TeamMembers /></ProtectedRoute>} />
             <Route path="/team/applications" element={<TeamApplications />} />
+            <Route path="/team/application/:id" element={<ApplicationDetail />} />
             <Route path="/team/weekly-report" element={<TeamWeeklyReport />} />
             
             {/* Main app routes with navigation */}
