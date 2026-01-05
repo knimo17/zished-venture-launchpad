@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -8,17 +9,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox } from "lucide-react";
+import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox, FolderKanban, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
 import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
 import { FridayReportReminder } from "@/components/FridayReportReminder";
-
+import { TeamOnboarding } from "@/components/TeamOnboarding";
 export function TeamHeader() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentMember, isAdmin } = useCurrentTeamMember();
   const { hasPermission } = useTeamMemberPermissions();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,17 +52,18 @@ export function TeamHeader() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate("/team/tasks")}
+                  onClick={() => navigate("/team/lists")}
                 >
-                  <ListTodo className="h-4 w-4 mr-2" />
-                  Tasks
+                  <FolderKanban className="h-4 w-4 mr-2" />
+                  Lists
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate("/team/lists")}
+                  onClick={() => navigate("/team/tasks")}
                 >
-                  Lists
+                  <ListTodo className="h-4 w-4 mr-2" />
+                  Tasks
                 </Button>
                 <Button
                   variant="ghost"
@@ -93,7 +96,15 @@ export function TeamHeader() {
               </nav>
             </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowOnboarding(true)}
+              title="Help"
+            >
+              <HelpCircle className="h-5 w-5" />
+            </Button>
             {currentMember ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -119,16 +130,17 @@ export function TeamHeader() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="md:hidden"
+                    onClick={() => navigate("/team/lists")}
+                  >
+                    <FolderKanban className="h-4 w-4 mr-2" />
+                    Lists
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="md:hidden"
                     onClick={() => navigate("/team/tasks")}
                   >
                     <ListTodo className="h-4 w-4 mr-2" />
                     Tasks
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="md:hidden"
-                    onClick={() => navigate("/team/lists")}
-                  >
-                    Lists
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="md:hidden"
@@ -191,6 +203,7 @@ export function TeamHeader() {
         </div>
       </div>
     </header>
+    <TeamOnboarding trigger={showOnboarding} onOpenChange={setShowOnboarding} />
     </>
   );
 }

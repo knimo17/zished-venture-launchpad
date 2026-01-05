@@ -52,6 +52,7 @@ interface TeamMember {
 const AVAILABLE_PERMISSIONS: { value: Permission; label: string }[] = [
   { value: 'view_applications', label: 'View Applications' },
   { value: 'view_weekly_reports', label: 'View Weekly Reports' },
+  { value: 'assign_tasks', label: 'Assign Tasks to Others' },
 ];
 
 export default function TeamMembers() {
