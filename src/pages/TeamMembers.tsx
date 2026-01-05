@@ -129,7 +129,6 @@ export default function TeamMembers() {
         .insert({
           name: formData.name,
           email: formData.email,
-          user_id: user!.id, // Placeholder - will be replaced on signup
           invite_token: inviteToken,
           is_active: true,
         })
