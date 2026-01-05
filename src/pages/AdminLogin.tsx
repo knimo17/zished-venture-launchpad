@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,7 @@ export default function AdminLogin() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, isAdmin } = useAuth();
+  const { signIn, signUp, signOut, isAdmin, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -250,6 +251,14 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      {user && (
+        <div className="absolute top-4 right-4">
+          <Button variant="outline" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      )}
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
