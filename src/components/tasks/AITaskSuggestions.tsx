@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Calendar, Loader2, Check, Plus } from 'lucide-react';
+import { Sparkles, Calendar, Loader2, Plus, Pencil, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +24,7 @@ interface SuggestedTask {
   is_required: boolean;
   days_from_now: number;
   selected?: boolean;
+  editing?: boolean;
 }
 
 interface AITaskSuggestionsProps {
@@ -62,7 +64,7 @@ export default function AITaskSuggestions({ goals, currentMemberId, onTasksCreat
       if (error) throw error;
 
       if (data?.tasks) {
-        setSuggestions(data.tasks.map((t: SuggestedTask) => ({ ...t, selected: true })));
+        setSuggestions(data.tasks.map((t: SuggestedTask) => ({ ...t, selected: true, editing: false })));
         toast({ title: `${data.tasks.length} steps suggested!` });
       }
     } catch (error: any) {
@@ -80,6 +82,24 @@ export default function AITaskSuggestions({ goals, currentMemberId, onTasksCreat
   const toggleTask = (index: number) => {
     setSuggestions(prev => prev.map((t, i) => 
       i === index ? { ...t, selected: !t.selected } : t
+    ));
+  };
+
+  const startEditing = (index: number) => {
+    setSuggestions(prev => prev.map((t, i) => 
+      i === index ? { ...t, editing: true } : t
+    ));
+  };
+
+  const updateTask = (index: number, field: keyof SuggestedTask, value: any) => {
+    setSuggestions(prev => prev.map((t, i) => 
+      i === index ? { ...t, [field]: value } : t
+    ));
+  };
+
+  const saveEditing = (index: number) => {
+    setSuggestions(prev => prev.map((t, i) => 
+      i === index ? { ...t, editing: false } : t
     ));
   };
 
@@ -195,39 +215,102 @@ export default function AITaskSuggestions({ goals, currentMemberId, onTasksCreat
         {suggestions.length > 0 && (
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
-              Select the steps you want to add:
+              Select the steps you want to add (click pencil to edit):
             </p>
             {suggestions.map((task, index) => (
               <div 
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                className={`p-3 rounded-lg border transition-colors ${
                   task.selected ? 'bg-background border-primary/50' : 'bg-muted/30 border-transparent'
                 }`}
               >
-                <Checkbox
-                  checked={task.selected}
-                  onCheckedChange={() => toggleTask(index)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-medium ${!task.selected ? 'text-muted-foreground' : ''}`}>
-                      {task.title}
-                    </span>
-                    <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
-                      {task.priority}
-                    </Badge>
-                    {task.is_required && (
-                      <Badge variant="outline" className="text-xs">Required</Badge>
-                    )}
+                {task.editing ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={task.title}
+                      onChange={(e) => updateTask(index, 'title', e.target.value)}
+                      placeholder="Task title"
+                      className="font-medium"
+                    />
+                    <Textarea
+                      value={task.description}
+                      onChange={(e) => updateTask(index, 'description', e.target.value)}
+                      placeholder="Description"
+                      rows={2}
+                    />
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <Select 
+                        value={task.priority} 
+                        onValueChange={(v) => updateTask(index, 'priority', v)}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="low">Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Days:</span>
+                        <Input
+                          type="number"
+                          value={task.days_from_now}
+                          onChange={(e) => updateTask(index, 'days_from_now', parseInt(e.target.value) || 0)}
+                          className="w-[70px]"
+                          min={0}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={task.is_required}
+                          onCheckedChange={(v) => updateTask(index, 'is_required', v)}
+                        />
+                        <span className="text-sm">Required</span>
+                      </div>
+                      <Button size="sm" className="ml-auto" onClick={() => saveEditing(index)}>
+                        <Check className="h-4 w-4 mr-1" />
+                        Done
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {task.description}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Due in {task.days_from_now} day{task.days_from_now !== 1 ? 's' : ''}
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={task.selected}
+                      onCheckedChange={() => toggleTask(index)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-medium ${!task.selected ? 'text-muted-foreground' : ''}`}>
+                          {task.title}
+                        </span>
+                        <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
+                          {task.priority}
+                        </Badge>
+                        {task.is_required && (
+                          <Badge variant="outline" className="text-xs">Required</Badge>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-6 w-6 p-0 ml-auto"
+                          onClick={() => startEditing(index)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {task.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Due in {task.days_from_now} day{task.days_from_now !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             
