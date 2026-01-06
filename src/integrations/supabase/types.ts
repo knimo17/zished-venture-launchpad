@@ -501,6 +501,7 @@ export type Database = {
       goals: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           is_archived: boolean
@@ -512,6 +513,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean
@@ -523,6 +525,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean
@@ -533,6 +536,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "todo_lists_owner_id_fkey"
             columns: ["owner_id"]
@@ -1205,6 +1215,7 @@ export type Database = {
     }
     Functions: {
       calculate_goal_progress: { Args: { goal_uuid: string }; Returns: number }
+      get_current_team_member_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1222,6 +1233,10 @@ export type Database = {
       }
       is_task_member: {
         Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
+      team_member_has_permission: {
+        Args: { _permission: string; _user_id: string }
         Returns: boolean
       }
     }
