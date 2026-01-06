@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, User } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -30,6 +30,7 @@ interface TaskFiltersProps {
   onFiltersChange: (filters: Filters) => void;
   teamMembers: TeamMember[];
   todoLists: Goal[]; // Keep prop name for backwards compatibility
+  currentMemberId?: string;
 }
 
 export default function TaskFilters({
@@ -37,12 +38,15 @@ export default function TaskFilters({
   onFiltersChange,
   teamMembers,
   todoLists,
+  currentMemberId,
 }: TaskFiltersProps) {
   const hasActiveFilters =
     filters.status !== 'all' ||
     filters.priority !== 'all' ||
     filters.assignee !== 'all' ||
     filters.list !== 'all';
+
+  const isMyTasksActive = currentMemberId && filters.assignee === currentMemberId;
 
   const clearFilters = () => {
     onFiltersChange({
@@ -53,8 +57,28 @@ export default function TaskFilters({
     });
   };
 
+  const toggleMyTasks = () => {
+    if (isMyTasksActive) {
+      onFiltersChange({ ...filters, assignee: 'all' });
+    } else if (currentMemberId) {
+      onFiltersChange({ ...filters, assignee: currentMemberId });
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-3 items-center">
+      {currentMemberId && (
+        <Button
+          variant={isMyTasksActive ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleMyTasks}
+          className="gap-2"
+        >
+          <User className="h-4 w-4" />
+          My Tasks
+        </Button>
+      )}
+
       <Select
         value={filters.status}
         onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
