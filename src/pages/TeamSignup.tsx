@@ -155,10 +155,10 @@ export default function TeamSignup() {
 
       toast({
         title: "Account created!",
-        description: "You can now access your tasks.",
+        description: "You can now access your goals.",
       });
 
-      navigate("/team/tasks");
+      navigate("/team/goals");
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({

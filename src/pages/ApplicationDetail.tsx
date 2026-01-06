@@ -155,7 +155,7 @@ export default function ApplicationDetail() {
     if (permLoading) return;
     
     if (isTeamRoute && !hasPermission("view_applications") && !isAdmin) {
-      navigate("/team/tasks");
+      navigate("/team/goals");
     }
   }, [permLoading, isTeamRoute, hasPermission, isAdmin, navigate]);
 
