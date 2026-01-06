@@ -39,11 +39,21 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText, User, MessageSquare, ChevronDown } from 'lucide-react';
+import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText, User, MessageSquare, ChevronDown, ListTodo, Circle, Clock, AlertCircle } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { TeamHeader } from '@/components/TeamHeader';
 import { Badge } from '@/components/ui/badge';
 import { GoalComments } from '@/components/goals/GoalComments';
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assigned_to: string | null;
+  assignee_name?: string;
+}
 
 interface Goal {
   id: string;
@@ -61,6 +71,7 @@ interface Goal {
   owner_name?: string;
   created_by_name?: string;
   comment_count?: number;
+  tasks?: Task[];
 }
 
 interface GoalTemplate {
@@ -85,6 +96,8 @@ export default function TeamGoals() {
   const [formData, setFormData] = useState({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
   const [showArchived, setShowArchived] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [goalTasks, setGoalTasks] = useState<Record<string, Task[]>>({});
 
   const { currentMember, loading: memberLoading, error: memberError, isAdmin } = useCurrentTeamMember();
   const { hasPermission } = useTeamMemberPermissions();
@@ -363,6 +376,60 @@ export default function TeamGoals() {
     });
   };
 
+  const toggleTasks = async (goalId: string) => {
+    setExpandedTasks(prev => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
+
+    // Fetch tasks if not already loaded
+    if (!goalTasks[goalId]) {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('id, title, status, priority, due_date, assigned_to')
+        .eq('goal_id', goalId)
+        .order('order_index', { ascending: true });
+
+      if (tasks) {
+        // Get assignee names
+        const assigneeIds = [...new Set(tasks.map(t => t.assigned_to).filter(Boolean))];
+        let assigneeMap = new Map<string, string>();
+        if (assigneeIds.length > 0) {
+          const { data: assignees } = await supabase
+            .from('team_members')
+            .select('id, name')
+            .in('id', assigneeIds);
+          assigneeMap = new Map(assignees?.map(a => [a.id, a.name]) || []);
+        }
+
+        const tasksWithNames = tasks.map(task => ({
+          ...task,
+          assignee_name: task.assigned_to ? assigneeMap.get(task.assigned_to) : undefined,
+        }));
+
+        setGoalTasks(prev => ({ ...prev, [goalId]: tasksWithNames }));
+      }
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'in_progress':
+        return <Clock className="h-4 w-4 text-blue-600" />;
+      case 'blocked':
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return <Circle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
   const filteredGoals = goals.filter((goal) =>
     showArchived ? goal.is_archived : !goal.is_archived
   );
@@ -521,7 +588,6 @@ export default function TeamGoals() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{goal.task_count} {goal.task_count === 1 ? 'task' : 'tasks'}</span>
                       {goal.target_date && (
                         <Badge variant="outline" className="gap-1">
                           <Calendar className="h-3 w-3" />
@@ -529,6 +595,52 @@ export default function TeamGoals() {
                         </Badge>
                       )}
                     </div>
+
+                    {/* Tasks section */}
+                    <Collapsible open={expandedTasks.has(goal.id)}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-between mt-2"
+                          onClick={() => toggleTasks(goal.id)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <ListTodo className="h-4 w-4" />
+                            {goal.task_count} {goal.task_count === 1 ? 'task' : 'tasks'}
+                          </span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedTasks.has(goal.id) ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-3">
+                        <div className="space-y-2">
+                          {goalTasks[goal.id]?.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-2">No tasks yet</p>
+                          )}
+                          {goalTasks[goal.id]?.map(task => (
+                            <div 
+                              key={task.id} 
+                              className="flex items-center gap-2 p-2 rounded-md bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                              onClick={() => navigate(`/team/tasks?task=${task.id}`)}
+                            >
+                              {getStatusIcon(task.status)}
+                              <span className={`flex-1 text-sm ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                                {task.title}
+                              </span>
+                              {task.priority === 'high' && (
+                                <Badge variant="destructive" className="text-xs">High</Badge>
+                              )}
+                              {task.assignee_name && (
+                                <span className="text-xs text-muted-foreground">{task.assignee_name}</span>
+                              )}
+                            </div>
+                          ))}
+                          {!goalTasks[goal.id] && (
+                            <p className="text-sm text-muted-foreground text-center py-2">Loading...</p>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
 
                     {/* Comments section */}
                     <Collapsible open={expandedComments.has(goal.id)}>
