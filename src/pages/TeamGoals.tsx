@@ -568,14 +568,14 @@ export default function TeamGoals() {
                 <div>
                   <label className="text-sm font-medium">Assign To (optional)</label>
                   <Select
-                    value={formData.assign_to}
-                    onValueChange={(value) => setFormData({ ...formData, assign_to: value })}
+                    value={formData.assign_to || "_self"}
+                    onValueChange={(value) => setFormData({ ...formData, assign_to: value === "_self" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Myself" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Myself</SelectItem>
+                      <SelectItem value="_self">Myself</SelectItem>
                       {teamMembers.filter(m => m.id !== currentMember?.id).map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name}
@@ -593,12 +593,13 @@ export default function TeamGoals() {
                 <div>
                   <label className="text-sm font-medium">Start from Template (optional)</label>
                   <Select
-                    value={formData.template_id}
+                    value={formData.template_id || "_none"}
                     onValueChange={(value) => {
-                      const template = templates.find(t => t.id === value);
+                      const actualValue = value === "_none" ? "" : value;
+                      const template = templates.find(t => t.id === actualValue);
                       setFormData({
                         ...formData,
-                        template_id: value,
+                        template_id: actualValue,
                         name: template?.name || formData.name,
                         description: template?.description || formData.description,
                       });
@@ -608,7 +609,7 @@ export default function TeamGoals() {
                       <SelectValue placeholder="Select a template" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No template</SelectItem>
+                      <SelectItem value="_none">No template</SelectItem>
                       {templates.map((template) => (
                         <SelectItem key={template.id} value={template.id}>
                           <div className="flex items-center gap-2">
