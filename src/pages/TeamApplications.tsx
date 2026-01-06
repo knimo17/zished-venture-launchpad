@@ -53,7 +53,7 @@ export default function TeamApplications() {
     if (permLoading) return;
 
     if (!hasPermission("view_applications") && !isAdmin) {
-      navigate("/team/tasks");
+      navigate("/team/goals");
       return;
     }
 
