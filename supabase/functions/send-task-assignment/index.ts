@@ -49,7 +49,7 @@ serve(async (req) => {
         priority,
         status,
         due_date,
-        todo_lists!inner (name)
+        goals!inner (name)
       `)
       .eq("id", task_id)
       .single();
@@ -133,7 +133,7 @@ serve(async (req) => {
               </span>
             </p>
             <p style="margin: 5px 0 0 0; color: #888;"><strong>Due:</strong> ${dueDate}</p>
-            <p style="margin: 5px 0 0 0; color: #888;"><strong>List:</strong> ${(task as any).todo_lists.name}</p>
+            <p style="margin: 5px 0 0 0; color: #888;"><strong>Goal:</strong> ${(task as any).goals.name}</p>
           </div>
           <p style="color: #666;">
             <a href="${appUrl}/team/tasks" style="background: #333; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">

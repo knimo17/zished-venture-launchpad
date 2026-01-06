@@ -301,6 +301,7 @@ export default function TeamTasks() {
           onFiltersChange={setFilters}
           teamMembers={teamMembers}
           todoLists={goals}
+          currentMemberId={currentMember?.id}
         />
 
         <div className="grid gap-4 mt-6">
