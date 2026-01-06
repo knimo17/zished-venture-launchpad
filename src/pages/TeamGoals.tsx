@@ -44,6 +44,7 @@ import { Footer } from '@/components/Footer';
 import { TeamHeader } from '@/components/TeamHeader';
 import { Badge } from '@/components/ui/badge';
 import { GoalComments } from '@/components/goals/GoalComments';
+import { InlineAITaskGenerator } from '@/components/goals/InlineAITaskGenerator';
 
 interface Task {
   id: string;
@@ -614,8 +615,20 @@ export default function TeamGoals() {
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pt-3">
                         <div className="space-y-2">
-                          {goalTasks[goal.id]?.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-2">No tasks yet</p>
+                          {goalTasks[goal.id]?.length === 0 && currentMember && (
+                            <div className="space-y-3">
+                              <p className="text-sm text-muted-foreground text-center py-2">No tasks yet</p>
+                              <InlineAITaskGenerator
+                                goal={goal}
+                                currentMemberId={currentMember.id}
+                                onTasksCreated={() => {
+                                  setGoalTasks(prev => ({ ...prev, [goal.id]: undefined as any }));
+                                  fetchData();
+                                  toggleTasks(goal.id);
+                                  setTimeout(() => toggleTasks(goal.id), 100);
+                                }}
+                              />
+                            </div>
                           )}
                           {goalTasks[goal.id]?.map(task => (
                             <div 
