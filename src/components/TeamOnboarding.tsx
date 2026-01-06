@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Target, ListTodo, ArrowDown } from "lucide-react";
 
 const ONBOARDING_KEY = "team_onboarding_seen_v3";
 
@@ -57,35 +56,33 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
         <DialogHeader>
           <DialogTitle className="text-xl">👋 Welcome!</DialogTitle>
           <DialogDescription>
-            Here's how this works in 10 seconds.
+            Here's how this works in 3 simple steps.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="flex gap-3 items-center p-3 bg-primary/5 rounded-lg">
-            <Target className="h-8 w-8 text-primary flex-shrink-0" />
+          <div className="flex gap-3 items-start p-3 bg-primary/5 rounded-lg">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-primary-foreground font-bold flex-shrink-0">1</div>
             <div>
-              <p className="font-semibold">Goals = What you want</p>
-              <p className="text-sm text-muted-foreground">The big thing you're trying to achieve</p>
+              <p className="font-semibold">Set a Goal</p>
+              <p className="text-sm text-muted-foreground">The big thing you're trying to achieve this week, month, or quarter</p>
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <ArrowDown className="h-5 w-5 text-muted-foreground" />
-          </div>
-
-          <div className="flex gap-3 items-center p-3 bg-accent/5 rounded-lg">
-            <ListTodo className="h-8 w-8 text-accent flex-shrink-0" />
+          <div className="flex gap-3 items-start p-3 bg-accent/5 rounded-lg">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-accent text-accent-foreground font-bold flex-shrink-0">2</div>
             <div>
-              <p className="font-semibold">Tasks = Steps to get there</p>
-              <p className="text-sm text-muted-foreground">AI suggests tasks, or pick from templates</p>
+              <p className="font-semibold">Create Tasks</p>
+              <p className="text-sm text-muted-foreground">Break it down into steps yourself, or let AI create them for you</p>
             </div>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-3 text-center">
-            <p className="text-sm">
-              <strong>That's it!</strong> Create a goal, let AI add tasks, check them off. ✅
-            </p>
+          <div className="flex gap-3 items-start p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-foreground text-background font-bold flex-shrink-0">3</div>
+            <div>
+              <p className="font-semibold">Check Them Off</p>
+              <p className="text-sm text-muted-foreground">Complete tasks as you go and watch your progress grow ✅</p>
+            </div>
           </div>
         </div>
 
