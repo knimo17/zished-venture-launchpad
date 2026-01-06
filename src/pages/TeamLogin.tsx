@@ -40,7 +40,7 @@ export default function TeamLogin() {
       .maybeSingle();
 
     if (data) {
-      navigate("/team/tasks");
+      navigate("/team/goals");
     }
   };
 
@@ -76,9 +76,9 @@ export default function TeamLogin() {
         if (teamMember) {
           toast({
             title: "Welcome back!",
-            description: "Redirecting to your tasks...",
+            description: "Redirecting to your goals...",
           });
-          navigate("/team/tasks");
+          navigate("/team/goals");
         } else {
           toast({
             title: "Access denied",
