@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.link-team-invite]
 verify_jwt = false
+
+[functions.suggest-tasks]
+verify_jwt = false
