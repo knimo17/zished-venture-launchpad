@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, Briefcase, FileText, ClipboardList, Trash2, Users } from 'lucide-react';
+import { LogOut, Briefcase, FileText, ClipboardList, Trash2, Users, LayoutTemplate } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,6 +162,10 @@ export default function AdminDashboard() {
             <Button onClick={() => navigate('/admin/internships')} variant="outline">
               <Briefcase className="mr-2 h-4 w-4" />
               Manage Internships
+            </Button>
+            <Button onClick={() => navigate('/admin/goal-templates')} variant="outline">
+              <LayoutTemplate className="mr-2 h-4 w-4" />
+              Goal Templates
             </Button>
             <Button onClick={handleSignOut} variant="outline">
               <LogOut className="mr-2 h-4 w-4" />
