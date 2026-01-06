@@ -53,6 +53,8 @@ const AVAILABLE_PERMISSIONS: { value: Permission; label: string }[] = [
   { value: 'view_applications', label: 'View Applications' },
   { value: 'view_weekly_reports', label: 'View Weekly Reports' },
   { value: 'assign_tasks', label: 'Assign Tasks to Others' },
+  { value: 'view_all_goals', label: 'View All Goals' },
+  { value: 'assign_goals', label: 'Assign Goals to Others' },
 ];
 
 export default function TeamMembers() {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
 
-export type Permission = "view_applications" | "view_weekly_reports" | "assign_tasks";
+export type Permission = "view_applications" | "view_weekly_reports" | "assign_tasks" | "view_all_goals" | "assign_goals";
 
 export function useTeamMemberPermissions() {
   const { currentMember, loading: memberLoading, isAdmin } = useCurrentTeamMember();
