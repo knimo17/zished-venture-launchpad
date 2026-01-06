@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Target, ListTodo, ArrowDown } from "lucide-react";
 
-const ONBOARDING_KEY = "team_onboarding_seen_v2";
+const ONBOARDING_KEY = "team_onboarding_seen_v3";
 
 interface TeamOnboardingProps {
   trigger?: boolean;
@@ -78,13 +78,13 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
             <ListTodo className="h-8 w-8 text-accent flex-shrink-0" />
             <div>
               <p className="font-semibold">Tasks = Steps to get there</p>
-              <p className="text-sm text-muted-foreground">Small actions that move you forward</p>
+              <p className="text-sm text-muted-foreground">AI suggests tasks, or pick from templates</p>
             </div>
           </div>
 
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <p className="text-sm">
-              <strong>That's it!</strong> Create a goal, add tasks, check them off. ✅
+              <strong>That's it!</strong> Create a goal, let AI add tasks, check them off. ✅
             </p>
           </div>
         </div>
