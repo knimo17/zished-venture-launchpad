@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Target, ListTodo, ArrowRight, Link2, CheckCircle2 } from "lucide-react";
+import { Target, ListTodo, ArrowDown } from "lucide-react";
 
 const ONBOARDING_KEY = "team_onboarding_seen_v2";
 
@@ -23,7 +23,6 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   useEffect(() => {
-    // Check if this is the first visit
     const seen = localStorage.getItem(ONBOARDING_KEY);
     if (!seen) {
       setOpen(true);
@@ -54,69 +53,39 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Welcome to the Team Dashboard</DialogTitle>
+          <DialogTitle className="text-xl">👋 Welcome!</DialogTitle>
           <DialogDescription>
-            Here's how Goals and Tasks work together to help you achieve outcomes.
+            Here's how this works in 10 seconds.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          <div className="flex gap-4 items-start">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Target className="h-5 w-5 text-primary" />
-            </div>
+        <div className="space-y-4 py-4">
+          <div className="flex gap-3 items-center p-3 bg-primary/5 rounded-lg">
+            <Target className="h-8 w-8 text-primary flex-shrink-0" />
             <div>
-              <h3 className="font-semibold mb-1">Goals (Outcomes)</h3>
-              <p className="text-sm text-muted-foreground">
-                Goals represent the outcomes you want to achieve. Each goal can have a target date and tracks progress automatically based on completed tasks.
-              </p>
+              <p className="font-semibold">Goals = What you want</p>
+              <p className="text-sm text-muted-foreground">The big thing you're trying to achieve</p>
             </div>
           </div>
 
           <div className="flex justify-center">
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            <ArrowDown className="h-5 w-5 text-muted-foreground" />
           </div>
 
-          <div className="flex gap-4 items-start">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-              <ListTodo className="h-5 w-5 text-accent" />
-            </div>
+          <div className="flex gap-3 items-center p-3 bg-accent/5 rounded-lg">
+            <ListTodo className="h-8 w-8 text-accent flex-shrink-0" />
             <div>
-              <h3 className="font-semibold mb-1">Tasks (Action Steps)</h3>
-              <p className="text-sm text-muted-foreground">
-                Tasks are the actionable steps within a goal. They can be ordered, have dependencies, and include clear completion criteria.
-              </p>
+              <p className="font-semibold">Tasks = Steps to get there</p>
+              <p className="text-sm text-muted-foreground">Small actions that move you forward</p>
             </div>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-            <p className="text-sm font-medium">Key Features:</p>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                <span><strong>Dependencies:</strong> Tasks can depend on other tasks being completed first</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                <span><strong>Completion Criteria:</strong> Define what "done" looks like for each task</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                <span><strong>Templates:</strong> Use pre-built templates like "Register a Business with RGD"</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-sm font-medium mb-2">Quick Start:</p>
-            <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>Create a <strong>Goal</strong> (optionally from a template)</li>
-              <li>Add <strong>Tasks</strong> with clear completion criteria</li>
-              <li>Set dependencies between tasks if needed</li>
-              <li>Track progress as tasks are completed</li>
-            </ol>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <p className="text-sm">
+              <strong>That's it!</strong> Create a goal, add tasks, check them off. ✅
+            </p>
           </div>
         </div>
 
@@ -131,7 +100,7 @@ export function TeamOnboarding({ trigger, onOpenChange }: TeamOnboardingProps) {
               htmlFor="dont-show"
               className="text-sm text-muted-foreground cursor-pointer"
             >
-              Don't show this again
+              Don't show again
             </label>
           </div>
           <Button onClick={handleClose}>Got it!</Button>
