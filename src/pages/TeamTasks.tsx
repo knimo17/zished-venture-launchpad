@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import TaskModal from '@/components/tasks/TaskModal';
 import TaskFilters from '@/components/tasks/TaskFilters';
+import AITaskSuggestions from '@/components/tasks/AITaskSuggestions';
 import { Footer } from '@/components/Footer';
 import { TeamHeader } from '@/components/TeamHeader';
 
@@ -286,6 +287,14 @@ export default function TeamTasks() {
             New Task
           </Button>
         </div>
+
+        {currentMember && (
+          <AITaskSuggestions
+            goals={goals}
+            currentMemberId={currentMember.id}
+            onTasksCreated={fetchData}
+          />
+        )}
 
         <TaskFilters
           filters={filters}
