@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentTeamMember } from '@/hooks/useCurrentTeamMember';
+import { useTeamMemberPermissions } from '@/hooks/useTeamMemberPermissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,16 +34,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText, User, MessageSquare, ChevronDown } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { TeamHeader } from '@/components/TeamHeader';
 import { Badge } from '@/components/ui/badge';
+import { GoalComments } from '@/components/goals/GoalComments';
 
 interface Goal {
   id: string;
   name: string;
   description: string | null;
   owner_id: string;
+  created_by: string | null;
   is_archived: boolean;
   is_completed: boolean;
   target_date: string | null;
@@ -50,6 +58,9 @@ interface Goal {
   task_count?: number;
   completed_task_count?: number;
   progress?: number;
+  owner_name?: string;
+  created_by_name?: string;
+  comment_count?: number;
 }
 
 interface GoalTemplate {
@@ -58,30 +69,30 @@ interface GoalTemplate {
   description: string | null;
 }
 
-interface TaskTemplate {
+interface TeamMember {
   id: string;
-  goal_template_id: string;
-  title: string;
-  description: string | null;
-  order_index: number;
-  depends_on_order: number | null;
-  is_required: boolean;
-  completion_criteria: string | null;
-  default_priority: string;
+  name: string;
+  email: string;
 }
 
 export default function TeamGoals() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [templates, setTemplates] = useState<GoalTemplate[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', target_date: '', template_id: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
   const [showArchived, setShowArchived] = useState(false);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
 
   const { currentMember, loading: memberLoading, error: memberError, isAdmin } = useCurrentTeamMember();
+  const { hasPermission } = useTeamMemberPermissions();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const canViewAllGoals = isAdmin || hasPermission('view_all_goals');
+  const canAssignGoals = isAdmin || hasPermission('assign_goals');
 
   useEffect(() => {
     if (memberLoading) return;
@@ -101,7 +112,7 @@ export default function TeamGoals() {
 
   const fetchData = async () => {
     try {
-      // Fetch goals
+      // Fetch goals - RLS will filter based on permissions
       const { data: goalsData, error: goalsError } = await supabase
         .from('goals')
         .select('*')
@@ -118,7 +129,25 @@ export default function TeamGoals() {
       if (templatesError) throw templatesError;
       setTemplates(templatesData || []);
 
-      // Get task counts and progress for each goal
+      // Fetch team members for assignment dropdown (only if user can assign)
+      if (canAssignGoals) {
+        const { data: membersData } = await supabase
+          .from('team_members')
+          .select('id, name, email')
+          .eq('is_active', true)
+          .is('invite_token', null);
+        setTeamMembers(membersData || []);
+      }
+
+      // Get owner and creator names
+      const ownerIds = [...new Set((goalsData || []).flatMap(g => [g.owner_id, g.created_by].filter(Boolean)))];
+      const { data: owners } = await supabase
+        .from('team_members')
+        .select('id, name')
+        .in('id', ownerIds);
+      const ownerMap = new Map(owners?.map(o => [o.id, o.name]) || []);
+
+      // Get task counts, progress, and comment counts for each goal
       const goalsWithProgress = await Promise.all(
         (goalsData || []).map(async (goal) => {
           const { count: totalCount } = await supabase
@@ -139,6 +168,11 @@ export default function TeamGoals() {
             .eq('goal_id', goal.id)
             .eq('is_required', true);
 
+          const { count: commentCount } = await supabase
+            .from('goal_comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('goal_id', goal.id);
+
           const progress = requiredCount && requiredCount > 0 
             ? Math.round((completedCount || 0) / requiredCount * 100) 
             : 0;
@@ -148,6 +182,9 @@ export default function TeamGoals() {
             task_count: totalCount || 0,
             completed_task_count: completedCount || 0,
             progress,
+            owner_name: ownerMap.get(goal.owner_id) || 'Unknown',
+            created_by_name: goal.created_by ? ownerMap.get(goal.created_by) : null,
+            comment_count: commentCount || 0,
           };
         })
       );
@@ -190,12 +227,17 @@ export default function TeamGoals() {
           return;
         }
 
+        // Determine owner - if assigning to someone else, they become owner
+        const ownerId = formData.assign_to || currentMember.id;
+        const createdById = formData.assign_to ? currentMember.id : null;
+
         // Create the goal
         const { data: newGoal, error: goalError } = await supabase.from('goals').insert({
           name: formData.name,
           description: formData.description || null,
           target_date: formData.target_date || null,
-          owner_id: currentMember.id,
+          owner_id: ownerId,
+          created_by: createdById,
         }).select().single();
 
         if (goalError) throw goalError;
@@ -211,10 +253,8 @@ export default function TeamGoals() {
           if (templateError) throw templateError;
 
           if (taskTemplates && taskTemplates.length > 0) {
-            // Create a map of order_index to actual task ID for dependency linking
             const orderToTaskId: Record<number, string> = {};
 
-            // Insert tasks one by one to handle dependencies
             for (const template of taskTemplates) {
               const dependsOnTaskId = template.depends_on_order 
                 ? orderToTaskId[template.depends_on_order] 
@@ -233,7 +273,7 @@ export default function TeamGoals() {
                   priority: template.default_priority,
                   status: 'pending',
                   created_by: currentMember.id,
-                  assigned_to: currentMember.id,
+                  assigned_to: ownerId,
                 })
                 .select()
                 .single();
@@ -244,16 +284,16 @@ export default function TeamGoals() {
 
             toast({ title: `Goal created with ${taskTemplates.length} tasks from template!` });
           } else {
-            toast({ title: 'Goal created!' });
+            toast({ title: formData.assign_to ? 'Goal assigned!' : 'Goal created!' });
           }
         } else {
-          toast({ title: 'Goal created!' });
+          toast({ title: formData.assign_to ? 'Goal assigned!' : 'Goal created!' });
         }
       }
 
       setIsModalOpen(false);
       setEditingGoal(null);
-      setFormData({ name: '', description: '', target_date: '', template_id: '' });
+      setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
       fetchData();
     } catch (error) {
       console.error('Error saving goal:', error);
@@ -300,19 +340,39 @@ export default function TeamGoals() {
       description: goal.description || '',
       target_date: goal.target_date ? goal.target_date.split('T')[0] : '',
       template_id: '',
+      assign_to: '',
     });
     setIsModalOpen(true);
   };
 
   const openCreateModal = () => {
     setEditingGoal(null);
-    setFormData({ name: '', description: '', target_date: '', template_id: '' });
+    setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
     setIsModalOpen(true);
+  };
+
+  const toggleComments = (goalId: string) => {
+    setExpandedComments(prev => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
   };
 
   const filteredGoals = goals.filter((goal) =>
     showArchived ? goal.is_archived : !goal.is_archived
   );
+
+  // Check if user can edit/delete this goal
+  const canManageGoal = (goal: Goal) => {
+    if (isAdmin) return true;
+    if (currentMember && goal.owner_id === currentMember.id) return true;
+    return false;
+  };
 
   if (memberLoading || dataLoading) {
     return (
@@ -329,7 +389,9 @@ export default function TeamGoals() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold">Goals</h1>
-            <p className="text-muted-foreground">Define outcomes and track progress with tasks</p>
+            <p className="text-muted-foreground">
+              {canViewAllGoals ? 'All team goals' : 'Your personal goals'}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -376,51 +438,77 @@ export default function TeamGoals() {
                       )}
                       <CardTitle className="text-lg">{goal.name}</CardTitle>
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditModal(goal)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleArchive(goal)}
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{goal.name}"? This will also delete all tasks in this goal.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(goal.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                    {canManageGoal(goal) && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditModal(goal)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleArchive(goal)}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{goal.name}"? This will also delete all tasks in this goal.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(goal.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
                   {goal.description && (
                     <p className="text-sm text-muted-foreground mb-3">{goal.description}</p>
+                  )}
+
+                  {/* Show owner info for admins/viewers */}
+                  {canViewAllGoals && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant="outline" className="gap-1">
+                        <User className="h-3 w-3" />
+                        {goal.owner_name}
+                      </Badge>
+                      {goal.created_by_name && goal.created_by !== goal.owner_id && (
+                        <span className="text-xs text-muted-foreground">
+                          Assigned by {goal.created_by_name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show "Assigned by" for goal owner if different */}
+                  {!canViewAllGoals && goal.created_by_name && goal.created_by !== goal.owner_id && (
+                    <div className="mb-3">
+                      <Badge variant="secondary" className="text-xs">
+                        Assigned by {goal.created_by_name}
+                      </Badge>
+                    </div>
                   )}
                   
                   <div className="space-y-3">
@@ -441,6 +529,27 @@ export default function TeamGoals() {
                         </Badge>
                       )}
                     </div>
+
+                    {/* Comments section */}
+                    <Collapsible open={expandedComments.has(goal.id)}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-between mt-2"
+                          onClick={() => toggleComments(goal.id)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            {goal.comment_count} {goal.comment_count === 1 ? 'comment' : 'comments'}
+                          </span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedComments.has(goal.id) ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pt-3">
+                        <GoalComments goalId={goal.id} />
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
                 </CardContent>
               </Card>
@@ -454,6 +563,32 @@ export default function TeamGoals() {
               <DialogTitle>{editingGoal ? 'Edit Goal' : 'Create New Goal'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Assign to dropdown - only for users with assign_goals permission, and only when creating */}
+              {!editingGoal && canAssignGoals && teamMembers.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium">Assign To (optional)</label>
+                  <Select
+                    value={formData.assign_to}
+                    onValueChange={(value) => setFormData({ ...formData, assign_to: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Myself" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Myself</SelectItem>
+                      {teamMembers.filter(m => m.id !== currentMember?.id).map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Leave empty to create a goal for yourself
+                  </p>
+                </div>
+              )}
+
               {!editingGoal && templates.length > 0 && (
                 <div>
                   <label className="text-sm font-medium">Start from Template (optional)</label>
@@ -516,7 +651,7 @@ export default function TeamGoals() {
                 Cancel
               </Button>
               <Button onClick={handleSave}>
-                {editingGoal ? 'Save Changes' : 'Create Goal'}
+                {editingGoal ? 'Save Changes' : formData.assign_to ? 'Assign Goal' : 'Create Goal'}
               </Button>
             </DialogFooter>
           </DialogContent>
