@@ -38,8 +38,8 @@ serve(async (req) => {
           status,
           assigned_to,
           created_by,
-          list_id,
-          todo_lists!inner (
+          goal_id,
+          goals!inner (
             name,
             owner_id
           )
@@ -91,9 +91,34 @@ serve(async (req) => {
         `)
         .eq("task_id", task.id);
 
+      // For overdue tasks, also get admins to notify
+      let adminRecipients: { name: string; email: string }[] = [];
+      if (reminder.reminder_type === "overdue") {
+        // Get all team members with admin role
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin");
+
+        if (adminRoles && adminRoles.length > 0) {
+          const adminUserIds = adminRoles.map((r: any) => r.user_id);
+          
+          // Get admin team members by matching user_id
+          const { data: adminMembers } = await supabase
+            .from("team_members")
+            .select("name, email")
+            .in("user_id", adminUserIds);
+
+          if (adminMembers) {
+            adminRecipients = adminMembers;
+          }
+        }
+      }
+
       const allRecipients = [
         ...members,
-        ...(collaborators?.map((c: any) => c.team_members) || [])
+        ...(collaborators?.map((c: any) => c.team_members) || []),
+        ...adminRecipients
       ];
 
       const uniqueRecipients = allRecipients.filter(
@@ -107,7 +132,7 @@ serve(async (req) => {
         const reminderTypeMap: Record<string, string> = {
           before_due: "Upcoming Due Date",
           on_due: "Due Today",
-          overdue: "Overdue Task",
+          overdue: "⚠️ Overdue Task",
         };
         const reminderTypeText = reminderTypeMap[reminder.reminder_type] || "Task Reminder";
 
@@ -122,7 +147,24 @@ serve(async (req) => {
             })
           : "No due date set";
 
+        // Get assigned member name for context in admin emails
+        const assignedMember = members.find((m: any) => m.id === task.assigned_to);
+        const assignedToName = assignedMember?.name || "Unassigned";
+
         for (const recipient of uniqueRecipients) {
+          const isAdmin = adminRecipients.some(a => a.email === recipient.email);
+          const isAssignee = members.some((m: any) => m.id === task.assigned_to && m.email === recipient.email);
+          
+          // Customize message based on recipient role
+          let introMessage = "This is a reminder about your task:";
+          if (reminder.reminder_type === "overdue") {
+            if (isAdmin && !isAssignee) {
+              introMessage = `A task assigned to <strong>${assignedToName}</strong> is overdue and may need attention:`;
+            } else {
+              introMessage = "This task is overdue. If you're facing any blockers, please reach out so we can help:";
+            }
+          }
+
           try {
             await resend.emails.send({
               from: "Task Manager <onboarding@resend.dev>",
@@ -130,15 +172,16 @@ serve(async (req) => {
               subject: `[${reminderTypeText}] ${task.title}`,
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #333;">${reminderTypeText}: ${task.title}</h2>
+                  <h2 style="color: ${reminder.reminder_type === 'overdue' ? '#dc2626' : '#333'};">${reminderTypeText}: ${task.title}</h2>
                   <p style="color: #666;">Hi ${recipient.name},</p>
-                  <p style="color: #666;">This is a reminder about your task:</p>
-                  <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="color: #666;">${introMessage}</p>
+                  <div style="background: ${reminder.reminder_type === 'overdue' ? '#fef2f2' : '#f5f5f5'}; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${reminder.reminder_type === 'overdue' ? '#dc2626' : '#333'};">
                     <h3 style="margin: 0 0 10px 0; color: #333;">${task.title}</h3>
                     ${task.description ? `<p style="margin: 0 0 10px 0; color: #666;">${task.description}</p>` : ""}
-                    <p style="margin: 0; color: #888;"><strong>Due:</strong> ${dueDate}</p>
+                    <p style="margin: 0; color: #888;"><strong>Assigned to:</strong> ${assignedToName}</p>
+                    <p style="margin: 5px 0 0 0; color: ${reminder.reminder_type === 'overdue' ? '#dc2626' : '#888'};"><strong>Due:</strong> ${dueDate}</p>
                     <p style="margin: 5px 0 0 0; color: #888;"><strong>Status:</strong> ${task.status}</p>
-                    <p style="margin: 5px 0 0 0; color: #888;"><strong>List:</strong> ${task.todo_lists.name}</p>
+                    <p style="margin: 5px 0 0 0; color: #888;"><strong>Goal:</strong> ${task.goals.name}</p>
                   </div>
                   <p style="color: #666;">
                     <a href="${appUrl}/team/tasks" style="background: #333; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
@@ -148,7 +191,7 @@ serve(async (req) => {
                 </div>
               `,
             });
-            console.log(`Sent reminder email to ${recipient.email} for task ${task.id}`);
+            console.log(`Sent ${reminder.reminder_type} reminder email to ${recipient.email} for task ${task.id}`);
           } catch (emailError) {
             console.error(`Failed to send email to ${recipient.email}:`, emailError);
           }
