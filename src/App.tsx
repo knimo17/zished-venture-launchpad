@@ -19,6 +19,7 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import InternshipsPage from "./pages/InternshipsPage";
 import ManageInternships from "./pages/ManageInternships";
 import ManageSiteContent from "./pages/ManageSiteContent";
+import ManageGoalTemplates from "./pages/ManageGoalTemplates";
 import AssessmentV2 from "./pages/AssessmentV2";
 import AssessmentThankYou from "./pages/AssessmentThankYou";
 import WeeklyReportForm from "./pages/WeeklyReportForm";
@@ -133,10 +134,18 @@ const App = () => (
                 path="/admin/weekly-report/:id" 
                 element={
                   <ProtectedRoute>
-                <WeeklyReportDetail />
-              </ProtectedRoute>
-            } 
-          />
+                    <WeeklyReportDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/goal-templates" 
+                element={
+                  <ProtectedRoute>
+                    <ManageGoalTemplates />
+                  </ProtectedRoute>
+                } 
+              />
           
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
