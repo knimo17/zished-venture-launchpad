@@ -84,7 +84,7 @@ export function TeamHeader() {
                     Applications
                   </Button>
                 )}
-                {isAdmin && (
+                {(isAdmin || hasPermission("manage_team_members")) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -159,7 +159,7 @@ export function TeamHeader() {
                       Applications
                     </DropdownMenuItem>
                   )}
-                  {isAdmin && (
+                  {(isAdmin || hasPermission("manage_team_members")) && (
                     <DropdownMenuItem
                       className="md:hidden"
                       onClick={() => navigate("/team/members")}
