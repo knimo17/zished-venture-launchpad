@@ -37,7 +37,7 @@ import {
 import { UserPlus, Mail, Trash2, Shield, ShieldCheck } from 'lucide-react';
 import { TeamHeader } from '@/components/TeamHeader';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Permission } from '@/hooks/useTeamMemberPermissions';
+import { Permission, useTeamMemberPermissions } from '@/hooks/useTeamMemberPermissions';
 
 interface TeamMember {
   id: string;
@@ -55,6 +55,7 @@ const AVAILABLE_PERMISSIONS: { value: Permission; label: string }[] = [
   { value: 'assign_tasks', label: 'Assign Tasks to Others' },
   { value: 'view_all_goals', label: 'View All Goals' },
   { value: 'assign_goals', label: 'Assign Goals to Others' },
+  { value: 'manage_team_members', label: 'Manage Team Members' },
 ];
 
 export default function TeamMembers() {
@@ -68,25 +69,30 @@ export default function TeamMembers() {
   const [memberPermissions, setMemberPermissions] = useState<Permission[]>([]);
 
   const { user, isAdmin } = useAuth();
+  const { hasPermission, loading: permissionsLoading } = useTeamMemberPermissions();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const canManageTeam = isAdmin || hasPermission('manage_team_members');
 
   useEffect(() => {
+    if (permissionsLoading) return;
+    
     if (!user) {
-      navigate('/admin');
+      navigate('/team/login');
       return;
     }
-    if (!isAdmin) {
+    if (!canManageTeam) {
       toast({
         title: 'Access Denied',
-        description: 'Only admins can manage team members.',
+        description: 'You do not have permission to view team members.',
         variant: 'destructive',
       });
-      navigate('/team/tasks');
+      navigate('/team/goals');
       return;
     }
     fetchMembers();
-  }, [user, isAdmin]);
+  }, [user, canManageTeam, permissionsLoading]);
 
   const fetchMembers = async () => {
     try {
