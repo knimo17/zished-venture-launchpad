@@ -33,6 +33,7 @@ import TeamSignup from "./pages/TeamSignup";
 import TeamLogin from "./pages/TeamLogin";
 import TeamApplications from "./pages/TeamApplications";
 import TeamWeeklyReport from "./pages/TeamWeeklyReport";
+import AIAssistant from "./pages/AIAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ const App = () => (
             <Route path="/team/applications" element={<TeamApplications />} />
             <Route path="/team/application/:id" element={<ApplicationDetail />} />
             <Route path="/team/weekly-report" element={<TeamWeeklyReport />} />
+            <Route path="/team/ai-assistant" element={<AIAssistant />} />
             
             {/* Main app routes with navigation */}
             <Route element={<MainLayout />}>

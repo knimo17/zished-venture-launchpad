@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_communications: {
+        Row: {
+          ai_output: string
+          communication_type: string
+          context: Json | null
+          created_at: string | null
+          id: string
+          original_input: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          status: string | null
+          team_member_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          ai_output: string
+          communication_type: string
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          original_input?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          status?: string | null
+          team_member_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          ai_output?: string
+          communication_type?: string
+          context?: Json | null
+          created_at?: string | null
+          id?: string
+          original_input?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          status?: string | null
+          team_member_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_communications_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_evaluation: {
         Row: {
           assessment_result_id: string

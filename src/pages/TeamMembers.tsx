@@ -56,6 +56,7 @@ const AVAILABLE_PERMISSIONS: { value: Permission; label: string }[] = [
   { value: 'view_all_goals', label: 'View All Goals' },
   { value: 'assign_goals', label: 'Assign Goals to Others' },
   { value: 'manage_team_members', label: 'Manage Team Members' },
+  { value: 'view_communications', label: 'View AI Communications Log' },
 ];
 
 export default function TeamMembers() {

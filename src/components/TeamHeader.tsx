@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox, Target, HelpCircle } from "lucide-react";
+import { LogOut, ListTodo, Users, ChevronDown, FileText, Inbox, Target, HelpCircle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
 import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
@@ -49,7 +49,7 @@ export function TeamHeader() {
               <Link to="/" className="font-bold text-xl tracking-tight">
                 verigo54<span className="text-accent">.</span>
               </Link>
-              <nav className="hidden md:flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-4">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -65,6 +65,14 @@ export function TeamHeader() {
                 >
                   <ListTodo className="h-4 w-4 mr-2" />
                   Tasks
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/team/ai-assistant")}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Assistant
                 </Button>
                 <Button
                   variant="ghost"
@@ -142,6 +150,13 @@ export function TeamHeader() {
                   >
                     <ListTodo className="h-4 w-4 mr-2" />
                     Tasks
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="md:hidden"
+                    onClick={() => navigate("/team/ai-assistant")}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    AI Assistant
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="md:hidden"

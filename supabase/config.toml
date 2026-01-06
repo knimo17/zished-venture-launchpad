@@ -41,3 +41,12 @@ verify_jwt = false
 
 [functions.suggest-tasks]
 verify_jwt = false
+
+[functions.ai-generate-email]
+verify_jwt = false
+
+[functions.ai-refine-text]
+verify_jwt = false
+
+[functions.ai-customer-service]
+verify_jwt = false
