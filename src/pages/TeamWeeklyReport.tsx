@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamHeader } from "@/components/TeamHeader";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, FileText, ExternalLink, CheckCircle, Clock } from "lucide-react";
+import { Loader2, FileText, ExternalLink, CheckCircle, Clock, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { FridayReportReminder } from "@/components/FridayReportReminder";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReportSession {
   id: string;
@@ -18,9 +20,12 @@ interface ReportSession {
 }
 
 export default function TeamWeeklyReport() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { currentMember, loading: memberLoading } = useCurrentTeamMember();
   const [sessions, setSessions] = useState<ReportSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (memberLoading || !currentMember) {
@@ -46,6 +51,45 @@ export default function TeamWeeklyReport() {
     fetchSessions();
   }, [currentMember, memberLoading]);
 
+  const handleCreateReport = async () => {
+    if (!currentMember) return;
+
+    setCreating(true);
+    try {
+      const token = crypto.randomUUID();
+      
+      const { data, error } = await supabase
+        .from("weekly_report_sessions")
+        .insert({
+          token,
+          operator_email: currentMember.email,
+          operator_name: currentMember.name,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Report Created",
+        description: "You can now fill out your weekly report.",
+      });
+
+      // Navigate to the report form
+      navigate(`/weekly-report/${token}`);
+    } catch (error: any) {
+      console.error("Error creating report:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create report session.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (memberLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -67,11 +111,28 @@ export default function TeamWeeklyReport() {
           <FridayReportReminder />
         </div>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Weekly Reports</h1>
-          <p className="text-muted-foreground mt-1">
-            View and submit your weekly reports
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Weekly Reports</h1>
+            <p className="text-muted-foreground mt-1">
+              View and submit your weekly reports
+            </p>
+          </div>
+          {!pendingSession && (
+            <Button onClick={handleCreateReport} disabled={creating}>
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Weekly Report
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
         {pendingSession && (
@@ -88,9 +149,7 @@ export default function TeamWeeklyReport() {
               </p>
               <Button asChild>
                 <a
-                  href={`/weekly-report?token=${pendingSession.token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/weekly-report/${pendingSession.token}`}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Complete Report
@@ -106,7 +165,20 @@ export default function TeamWeeklyReport() {
           <Card>
             <CardContent className="py-12 text-center">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No weekly reports found</p>
+              <p className="text-muted-foreground mb-4">No weekly reports found</p>
+              <Button onClick={handleCreateReport} disabled={creating}>
+                {creating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Report
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         ) : (
