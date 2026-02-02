@@ -1355,6 +1355,10 @@ export type Database = {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
       }
+      is_goal_assignee: {
+        Args: { _goal_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_task_collaborator: {
         Args: { _task_id: string; _user_id: string }
         Returns: boolean
