@@ -513,6 +513,42 @@ export type Database = {
           },
         ]
       }
+      goal_assignees: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_assignees_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_assignees_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_comments: {
         Row: {
           author_id: string
