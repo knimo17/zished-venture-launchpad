@@ -39,12 +39,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText, User, MessageSquare, ChevronDown, ListTodo, Circle, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Target, Archive, Trash2, Edit, Calendar, CheckCircle2, FileText, User, MessageSquare, ChevronDown, ListTodo, Circle, Clock, AlertCircle, Users } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { TeamHeader } from '@/components/TeamHeader';
 import { Badge } from '@/components/ui/badge';
 import { GoalComments } from '@/components/goals/GoalComments';
 import { InlineAITaskGenerator } from '@/components/goals/InlineAITaskGenerator';
+import { GoalAssigneeSelect } from '@/components/goals/GoalAssigneeSelect';
 
 interface Task {
   id: string;
@@ -73,6 +74,7 @@ interface Goal {
   created_by_name?: string;
   comment_count?: number;
   tasks?: Task[];
+  assignees?: { id: string; name: string }[];
 }
 
 interface GoalTemplate {
@@ -94,7 +96,7 @@ export default function TeamGoals() {
   const [dataLoading, setDataLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', target_date: '', template_id: '', assign_to: '', assignee_ids: [] as string[] });
   const [showArchived, setShowArchived] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
@@ -161,6 +163,22 @@ export default function TeamGoals() {
         .in('id', ownerIds);
       const ownerMap = new Map(owners?.map(o => [o.id, o.name]) || []);
 
+      // Fetch goal assignees
+      const goalIds = (goalsData || []).map(g => g.id);
+      const { data: assigneesData } = await supabase
+        .from('goal_assignees')
+        .select('goal_id, team_member_id, team_members(id, name)')
+        .in('goal_id', goalIds);
+
+      const assigneesByGoal = new Map<string, { id: string; name: string }[]>();
+      (assigneesData || []).forEach((a: any) => {
+        const existing = assigneesByGoal.get(a.goal_id) || [];
+        if (a.team_members) {
+          existing.push({ id: a.team_members.id, name: a.team_members.name });
+        }
+        assigneesByGoal.set(a.goal_id, existing);
+      });
+
       // Get task counts, progress, and comment counts for each goal
       const goalsWithProgress = await Promise.all(
         (goalsData || []).map(async (goal) => {
@@ -199,6 +217,7 @@ export default function TeamGoals() {
             owner_name: ownerMap.get(goal.owner_id) || 'Unknown',
             created_by_name: goal.created_by ? ownerMap.get(goal.created_by) : null,
             comment_count: commentCount || 0,
+            assignees: assigneesByGoal.get(goal.id) || [],
           };
         })
       );
@@ -234,6 +253,33 @@ export default function TeamGoals() {
           .eq('id', editingGoal.id);
 
         if (error) throw error;
+
+        // Update assignees if permission allows
+        if (canAssignGoals && formData.assignee_ids.length > 0) {
+          // Delete existing assignees
+          await supabase
+            .from('goal_assignees')
+            .delete()
+            .eq('goal_id', editingGoal.id);
+
+          // Insert new assignees
+          const assigneeInserts = formData.assignee_ids.map(memberId => ({
+            goal_id: editingGoal.id,
+            team_member_id: memberId,
+          }));
+          const { error: assigneeError } = await supabase
+            .from('goal_assignees')
+            .insert(assigneeInserts);
+          if (assigneeError) throw assigneeError;
+
+          // Update owner to first assignee
+          const { error: ownerError } = await supabase
+            .from('goals')
+            .update({ owner_id: formData.assignee_ids[0] })
+            .eq('id', editingGoal.id);
+          if (ownerError) throw ownerError;
+        }
+
         toast({ title: 'Goal updated!' });
       } else {
         if (!currentMember) {
@@ -241,9 +287,10 @@ export default function TeamGoals() {
           return;
         }
 
-        // Determine owner - if assigning to someone else, they become owner
-        const ownerId = formData.assign_to || currentMember.id;
-        const createdById = formData.assign_to ? currentMember.id : null;
+        // Determine owner - first assignee becomes owner, or self if no assignees
+        const assigneeIds = formData.assignee_ids.length > 0 ? formData.assignee_ids : [currentMember.id];
+        const ownerId = assigneeIds[0];
+        const createdById = formData.assignee_ids.length > 0 ? currentMember.id : null;
 
         // Create the goal
         const { data: newGoal, error: goalError } = await supabase.from('goals').insert({
@@ -255,6 +302,18 @@ export default function TeamGoals() {
         }).select().single();
 
         if (goalError) throw goalError;
+
+        // Add all assignees to goal_assignees table
+        if (assigneeIds.length > 0) {
+          const assigneeInserts = assigneeIds.map(memberId => ({
+            goal_id: newGoal.id,
+            team_member_id: memberId,
+          }));
+          const { error: assigneeError } = await supabase
+            .from('goal_assignees')
+            .insert(assigneeInserts);
+          if (assigneeError) throw assigneeError;
+        }
 
         // If a template is selected, create tasks from the template
         if (formData.template_id) {
@@ -298,16 +357,16 @@ export default function TeamGoals() {
 
             toast({ title: `Goal created with ${taskTemplates.length} tasks from template!` });
           } else {
-            toast({ title: formData.assign_to ? 'Goal assigned!' : 'Goal created!' });
+            toast({ title: assigneeIds.length > 1 ? 'Goal created and assigned!' : 'Goal created!' });
           }
         } else {
-          toast({ title: formData.assign_to ? 'Goal assigned!' : 'Goal created!' });
+          toast({ title: assigneeIds.length > 1 ? 'Goal created and assigned!' : 'Goal created!' });
         }
       }
 
       setIsModalOpen(false);
       setEditingGoal(null);
-      setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
+      setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '', assignee_ids: [] });
       fetchData();
     } catch (error) {
       console.error('Error saving goal:', error);
@@ -355,13 +414,14 @@ export default function TeamGoals() {
       target_date: goal.target_date ? goal.target_date.split('T')[0] : '',
       template_id: '',
       assign_to: '',
+      assignee_ids: goal.assignees?.map(a => a.id) || [],
     });
     setIsModalOpen(true);
   };
 
   const openCreateModal = () => {
     setEditingGoal(null);
-    setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '' });
+    setFormData({ name: '', description: '', target_date: '', template_id: '', assign_to: '', assignee_ids: [] });
     setIsModalOpen(true);
   };
 
@@ -555,8 +615,26 @@ export default function TeamGoals() {
                     <p className="text-sm text-muted-foreground mb-3">{goal.description}</p>
                   )}
 
-                  {/* Show owner info for admins/viewers */}
-                  {canViewAllGoals && (
+                  {/* Show assignees */}
+                  {goal.assignees && goal.assignees.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <Users className="h-3 w-3 text-muted-foreground" />
+                      {goal.assignees.map((assignee) => (
+                        <Badge key={assignee.id} variant="outline" className="gap-1">
+                          <User className="h-3 w-3" />
+                          {assignee.name}
+                        </Badge>
+                      ))}
+                      {goal.created_by_name && goal.created_by !== goal.owner_id && (
+                        <span className="text-xs text-muted-foreground">
+                          Assigned by {goal.created_by_name}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fallback: Show owner if no assignees (legacy data) */}
+                  {(!goal.assignees || goal.assignees.length === 0) && canViewAllGoals && (
                     <div className="flex items-center gap-2 mb-3">
                       <Badge variant="outline" className="gap-1">
                         <User className="h-3 w-3" />
@@ -571,7 +649,7 @@ export default function TeamGoals() {
                   )}
 
                   {/* Show "Assigned by" for goal owner if different */}
-                  {!canViewAllGoals && goal.created_by_name && goal.created_by !== goal.owner_id && (
+                  {(!goal.assignees || goal.assignees.length === 0) && !canViewAllGoals && goal.created_by_name && goal.created_by !== goal.owner_id && (
                     <div className="mb-3">
                       <Badge variant="secondary" className="text-xs">
                         Assigned by {goal.created_by_name}
@@ -688,28 +766,20 @@ export default function TeamGoals() {
               <DialogTitle>{editingGoal ? 'Edit Goal' : 'Create New Goal'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              {/* Assign to dropdown - only for users with assign_goals permission, and only when creating */}
-              {!editingGoal && canAssignGoals && teamMembers.length > 0 && (
+              {/* Assign to team members - only for users with assign_goals permission */}
+              {canAssignGoals && teamMembers.length > 0 && (
                 <div>
-                  <label className="text-sm font-medium">Assign To (optional)</label>
-                  <Select
-                    value={formData.assign_to || "_self"}
-                    onValueChange={(value) => setFormData({ ...formData, assign_to: value === "_self" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Myself" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_self">Myself</SelectItem>
-                      {teamMembers.filter(m => m.id !== currentMember?.id).map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <label className="text-sm font-medium">Assign To</label>
+                  <GoalAssigneeSelect
+                    teamMembers={teamMembers}
+                    selectedIds={formData.assignee_ids}
+                    onSelectionChange={(ids) => setFormData({ ...formData, assignee_ids: ids })}
+                    currentMemberId={currentMember?.id}
+                  />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Leave empty to create a goal for yourself
+                    {editingGoal 
+                      ? 'Update who is assigned to this goal' 
+                      : 'Leave empty to create a goal for yourself, or select team members'}
                   </p>
                 </div>
               )}
