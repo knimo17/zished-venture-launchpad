@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.ai-customer-service]
 verify_jwt = false
+
+[functions.notify-weekly-report-submitted]
+verify_jwt = false

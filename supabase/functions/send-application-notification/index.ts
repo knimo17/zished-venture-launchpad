@@ -35,7 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send notification to admin
     const adminEmailResponse = await resend.emails.send({
       from: "verigo54 <admin@verigo54.com>",
-      to: ["admin@verigo54.com"],
+      to: ["admin@verigo54.com", "nana@verigo54.com"],
       subject: `New Application: ${data.applicantName} - ${applicationTypeLabel}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">

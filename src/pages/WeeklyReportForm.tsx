@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon, Plus, Trash2, Loader2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,42 @@ interface AITool {
   impact: string;
 }
 
+interface DraftData {
+  weekEnding: string | null;
+  assignedBusinesses: string[];
+  leadershipRole: string;
+  strategyChanged: boolean | null;
+  strategyChangeDetails: string;
+  problemDefinition: string;
+  problemChanged: boolean | null;
+  problemChangeDetails: string;
+  solutionDescription: string;
+  personalExecution: string;
+  approachViability: string;
+  activities: Activity[];
+  noActionReason: string;
+  activeUsers: string;
+  revenueGhs: string;
+  costsGhs: string;
+  leadsPartnerships: string;
+  qualitativeTraction: string;
+  usedAiTools: boolean | null;
+  aiToolsDetails: AITool[];
+  keyInsight: string;
+  challengesRisks: string;
+  biggestBlocker: string;
+  keyDecisions: string;
+  tradeOffsEvaluated: string;
+  decisionsOwnedEscalated: string;
+  delayedDecisions: string;
+  unconstrainedDecision: string;
+  talentCapabilityGaps: string;
+  capitalNeededGhs: string;
+  capitalUse: string;
+  nextWeekPriorities: string;
+  supportNeeded: string;
+}
+
 export default function WeeklyReportForm() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
@@ -42,6 +78,9 @@ export default function WeeklyReportForm() {
   const [submitting, setSubmitting] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [ventures, setVentures] = useState<Venture[]>([]);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form state
   const [weekEnding, setWeekEnding] = useState<Date>();
@@ -78,6 +117,119 @@ export default function WeeklyReportForm() {
   const [nextWeekPriorities, setNextWeekPriorities] = useState("");
   const [supportNeeded, setSupportNeeded] = useState("");
 
+  const draftKey = token ? `weekly-report-draft-${token}` : null;
+
+  // Save draft to localStorage (debounced)
+  const saveDraft = useCallback(() => {
+    if (!draftKey) return;
+    const draft: DraftData = {
+      weekEnding: weekEnding ? weekEnding.toISOString() : null,
+      assignedBusinesses,
+      leadershipRole,
+      strategyChanged,
+      strategyChangeDetails,
+      problemDefinition,
+      problemChanged,
+      problemChangeDetails,
+      solutionDescription,
+      personalExecution,
+      approachViability,
+      activities,
+      noActionReason,
+      activeUsers,
+      revenueGhs,
+      costsGhs,
+      leadsPartnerships,
+      qualitativeTraction,
+      usedAiTools,
+      aiToolsDetails,
+      keyInsight,
+      challengesRisks,
+      biggestBlocker,
+      keyDecisions,
+      tradeOffsEvaluated,
+      decisionsOwnedEscalated,
+      delayedDecisions,
+      unconstrainedDecision,
+      talentCapabilityGaps,
+      capitalNeededGhs,
+      capitalUse,
+      nextWeekPriorities,
+      supportNeeded,
+    };
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+      setDraftSaved(true);
+      if (draftIndicatorTimerRef.current) clearTimeout(draftIndicatorTimerRef.current);
+      draftIndicatorTimerRef.current = setTimeout(() => setDraftSaved(false), 3000);
+    } catch (e) {
+      console.error("Failed to save draft:", e);
+    }
+  }, [
+    draftKey, weekEnding, assignedBusinesses, leadershipRole, strategyChanged,
+    strategyChangeDetails, problemDefinition, problemChanged, problemChangeDetails,
+    solutionDescription, personalExecution, approachViability, activities, noActionReason,
+    activeUsers, revenueGhs, costsGhs, leadsPartnerships, qualitativeTraction,
+    usedAiTools, aiToolsDetails, keyInsight, challengesRisks, biggestBlocker,
+    keyDecisions, tradeOffsEvaluated, decisionsOwnedEscalated, delayedDecisions,
+    unconstrainedDecision, talentCapabilityGaps, capitalNeededGhs, capitalUse,
+    nextWeekPriorities, supportNeeded,
+  ]);
+
+  // Debounced auto-save on form state changes
+  useEffect(() => {
+    if (!draftKey || loading) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => saveDraft(), 1000);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [saveDraft, draftKey, loading]);
+
+  // Restore draft from localStorage
+  const restoreDraft = useCallback(() => {
+    if (!draftKey) return;
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
+      const draft: DraftData = JSON.parse(saved);
+      if (draft.weekEnding) setWeekEnding(new Date(draft.weekEnding));
+      if (draft.assignedBusinesses) setAssignedBusinesses(draft.assignedBusinesses);
+      if (draft.leadershipRole) setLeadershipRole(draft.leadershipRole);
+      if (draft.strategyChanged !== undefined) setStrategyChanged(draft.strategyChanged);
+      if (draft.strategyChangeDetails) setStrategyChangeDetails(draft.strategyChangeDetails);
+      if (draft.problemDefinition) setProblemDefinition(draft.problemDefinition);
+      if (draft.problemChanged !== undefined) setProblemChanged(draft.problemChanged);
+      if (draft.problemChangeDetails) setProblemChangeDetails(draft.problemChangeDetails);
+      if (draft.solutionDescription) setSolutionDescription(draft.solutionDescription);
+      if (draft.personalExecution) setPersonalExecution(draft.personalExecution);
+      if (draft.approachViability) setApproachViability(draft.approachViability);
+      if (draft.activities?.length) setActivities(draft.activities);
+      if (draft.noActionReason) setNoActionReason(draft.noActionReason);
+      if (draft.activeUsers) setActiveUsers(draft.activeUsers);
+      if (draft.revenueGhs) setRevenueGhs(draft.revenueGhs);
+      if (draft.costsGhs) setCostsGhs(draft.costsGhs);
+      if (draft.leadsPartnerships) setLeadsPartnerships(draft.leadsPartnerships);
+      if (draft.qualitativeTraction) setQualitativeTraction(draft.qualitativeTraction);
+      if (draft.usedAiTools !== undefined) setUsedAiTools(draft.usedAiTools);
+      if (draft.aiToolsDetails?.length) setAiToolsDetails(draft.aiToolsDetails);
+      if (draft.keyInsight) setKeyInsight(draft.keyInsight);
+      if (draft.challengesRisks) setChallengesRisks(draft.challengesRisks);
+      if (draft.biggestBlocker) setBiggestBlocker(draft.biggestBlocker);
+      if (draft.keyDecisions) setKeyDecisions(draft.keyDecisions);
+      if (draft.tradeOffsEvaluated) setTradeOffsEvaluated(draft.tradeOffsEvaluated);
+      if (draft.decisionsOwnedEscalated) setDecisionsOwnedEscalated(draft.decisionsOwnedEscalated);
+      if (draft.delayedDecisions) setDelayedDecisions(draft.delayedDecisions);
+      if (draft.unconstrainedDecision) setUnconstrainedDecision(draft.unconstrainedDecision);
+      if (draft.talentCapabilityGaps) setTalentCapabilityGaps(draft.talentCapabilityGaps);
+      if (draft.capitalNeededGhs) setCapitalNeededGhs(draft.capitalNeededGhs);
+      if (draft.capitalUse) setCapitalUse(draft.capitalUse);
+      if (draft.nextWeekPriorities) setNextWeekPriorities(draft.nextWeekPriorities);
+      if (draft.supportNeeded) setSupportNeeded(draft.supportNeeded);
+      console.log("Draft restored from localStorage");
+    } catch (e) {
+      console.error("Failed to restore draft:", e);
+    }
+  }, [draftKey]);
+
   useEffect(() => {
     fetchSessionAndVentures();
   }, [token]);
@@ -89,7 +241,6 @@ export default function WeeklyReportForm() {
     }
 
     try {
-      // Fetch session
       const { data: sessionData, error: sessionError } = await supabase
         .from("weekly_report_sessions")
         .select("*")
@@ -118,7 +269,6 @@ export default function WeeklyReportForm() {
 
       setSession(sessionData);
 
-      // Fetch ventures
       const { data: venturesData } = await supabase
         .from("ventures")
         .select("id, name")
@@ -126,6 +276,9 @@ export default function WeeklyReportForm() {
         .order("name");
 
       setVentures(venturesData || []);
+
+      // Restore draft after session is validated
+      restoreDraft();
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -135,6 +288,12 @@ export default function WeeklyReportForm() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearDraft = () => {
+    if (draftKey) {
+      try { localStorage.removeItem(draftKey); } catch (e) { /* ignore */ }
     }
   };
 
@@ -193,7 +352,6 @@ export default function WeeklyReportForm() {
     setSubmitting(true);
 
     try {
-      // Insert report
       const { data: report, error: reportError } = await supabase
         .from("weekly_reports")
         .insert({
@@ -261,6 +419,25 @@ export default function WeeklyReportForm() {
         .update({ status: "completed", completed_at: new Date().toISOString() })
         .eq("id", session.id);
 
+      // Clear draft on successful submission
+      clearDraft();
+
+      // Notify admins about the submission
+      try {
+        await supabase.functions.invoke("notify-weekly-report-submitted", {
+          body: {
+            operator_name: session.operator_name,
+            operator_email: session.operator_email,
+            week_ending: format(weekEnding, "yyyy-MM-dd"),
+            report_id: report.id,
+            session_id: session.id,
+          },
+        });
+      } catch (notifyError) {
+        console.error("Failed to send admin notification:", notifyError);
+        // Don't block submission for notification failure
+      }
+
       toast({
         title: "Report Submitted",
         description: "Your weekly business report has been submitted successfully.",
@@ -308,6 +485,9 @@ export default function WeeklyReportForm() {
           <h2 className="text-xl text-muted-foreground">Venture Operator Weekly Business Report</h2>
           <p className="text-sm text-muted-foreground mt-2">
             Submission deadline: Every Friday, 6:00 PM | Reporting currency: Ghana Cedis (GHS)
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Your progress is automatically saved as you type.
           </p>
         </div>
 
@@ -924,8 +1104,14 @@ export default function WeeklyReportForm() {
             </p>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-center">
+          {/* Submit Button with Draft Indicator */}
+          <div className="flex flex-col items-center gap-2">
+            {draftSaved && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground animate-in fade-in duration-300">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                Draft saved
+              </div>
+            )}
             <Button type="submit" size="lg" disabled={submitting}>
               {submitting ? (
                 <>
