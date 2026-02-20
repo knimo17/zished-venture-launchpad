@@ -328,7 +328,7 @@ function TeamReportsList({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate(`/admin/weekly-report/${report.id}`)}
+                    onClick={() => navigate(`/team/weekly-report/${report.id}`)}
                   >
                     <Eye className="h-4 w-4 mr-1" />
                     View
