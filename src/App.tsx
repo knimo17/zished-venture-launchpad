@@ -74,6 +74,7 @@ const App = () => (
             <Route path="/team/applications" element={<TeamApplications />} />
             <Route path="/team/application/:id" element={<ApplicationDetail />} />
             <Route path="/team/weekly-report" element={<TeamWeeklyReport />} />
+            <Route path="/team/weekly-report/:id" element={<WeeklyReportDetail />} />
             <Route path="/team/ai-assistant" element={<AIAssistant />} />
             
             {/* Main app routes with navigation */}
