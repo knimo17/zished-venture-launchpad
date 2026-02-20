@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { TeamHeader } from "@/components/TeamHeader";
 import { useCurrentTeamMember } from "@/hooks/useCurrentTeamMember";
+import { useTeamMemberPermissions } from "@/hooks/useTeamMemberPermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +35,12 @@ export default function TeamWeeklyReport() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentMember, loading: memberLoading, isAdmin } = useCurrentTeamMember();
+  const { hasPermission, loading: permLoading } = useTeamMemberPermissions();
   const [sessions, setSessions] = useState<ReportSession[]>([]);
   const [teamReports, setTeamReports] = useState<TeamReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const canViewTeamReports = isAdmin || hasPermission("view_weekly_reports");
 
   useEffect(() => {
     if (memberLoading || !currentMember) {
@@ -59,8 +62,8 @@ export default function TeamWeeklyReport() {
         setSessions(sessionsData || []);
       }
 
-      // If admin, also fetch all completed reports from team
-      if (isAdmin) {
+      // If admin or has view_weekly_reports permission, fetch all completed reports
+      if (isAdmin || hasPermission("view_weekly_reports")) {
         const { data: reportsData, error: reportsError } = await supabase
           .from("weekly_reports")
           .select("id, session_id, operator_name, operator_email, week_ending, created_at")
@@ -77,7 +80,7 @@ export default function TeamWeeklyReport() {
     }
 
     fetchData();
-  }, [currentMember, memberLoading, isAdmin]);
+  }, [currentMember, memberLoading, isAdmin, permLoading]);
 
   const handleCreateReport = async () => {
     if (!currentMember) return;
@@ -117,7 +120,7 @@ export default function TeamWeeklyReport() {
     }
   };
 
-  if (memberLoading || loading) {
+  if (memberLoading || loading || permLoading) {
     return (
       <div className="min-h-screen bg-background">
         <TeamHeader />
@@ -184,7 +187,7 @@ export default function TeamWeeklyReport() {
           </Card>
         )}
 
-        {isAdmin ? (
+        {canViewTeamReports ? (
           <Tabs defaultValue="my-reports">
             <TabsList className="mb-4">
               <TabsTrigger value="my-reports">
