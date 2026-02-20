@@ -24,72 +24,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
+    let isMounted = true;
+
+    const checkRoles = async (userId: string) => {
+      try {
+        const { data: adminData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle();
+        if (isMounted) setIsAdmin(!!adminData);
+
+        const { data: teamData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'team_member')
+          .maybeSingle();
+        if (isMounted) setIsTeamMember(!!teamData);
+      } catch {
+        if (isMounted) {
+          setIsAdmin(false);
+          setIsTeamMember(false);
+        }
+      }
+    };
+
+    // Listener for ONGOING auth changes (does NOT control loading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Check admin role
-        if (session?.user) {
-          setTimeout(async () => {
-            const { data: adminData } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', session.user.id)
-              .eq('role', 'admin')
-              .maybeSingle();
-            setIsAdmin(!!adminData);
 
-            const { data: teamData } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', session.user.id)
-              .eq('role', 'team_member')
-              .maybeSingle();
-            setIsTeamMember(!!teamData);
-            
-            setLoading(false);
-          }, 0);
+        if (session?.user) {
+          setTimeout(() => checkRoles(session.user.id), 0);
         } else {
           setIsAdmin(false);
           setIsTeamMember(false);
-          setLoading(false);
         }
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(async () => {
-          const { data: adminData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-          setIsAdmin(!!adminData);
+    // INITIAL load — await roles before setting loading=false
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
 
-          const { data: teamData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .eq('role', 'team_member')
-            .maybeSingle();
-          setIsTeamMember(!!teamData);
-          
-          setLoading(false);
-        }, 0);
-      } else {
-        setLoading(false);
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          await checkRoles(session.user.id);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
